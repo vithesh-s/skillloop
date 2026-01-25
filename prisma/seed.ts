@@ -189,7 +189,7 @@ async function main() {
         name: 'C# Programming',
         categoryId: programmingLangCategory.id,
         description: 'Object-oriented programming with C# including LINQ, async/await, and modern language features',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -197,7 +197,7 @@ async function main() {
         name: '.NET Core Framework',
         categoryId: frameworkCategory.id,
         description: 'Cross-platform .NET development including dependency injection, configuration, and middleware',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -205,7 +205,7 @@ async function main() {
         name: 'Blazor WebAssembly',
         categoryId: frameworkCategory.id,
         description: 'Client-side Blazor applications with component architecture and state management',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -213,7 +213,7 @@ async function main() {
         name: 'Blazor Server',
         categoryId: frameworkCategory.id,
         description: 'Server-side Blazor with SignalR for real-time UI updates',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -221,7 +221,7 @@ async function main() {
         name: 'Entity Framework Core',
         categoryId: databaseCategory.id,
         description: 'ORM for .NET including migrations, LINQ queries, and database relationships',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -229,7 +229,7 @@ async function main() {
         name: 'ASP.NET Core Web API',
         categoryId: frameworkCategory.id,
         description: 'RESTful API development with ASP.NET Core including authentication and authorization',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -237,7 +237,7 @@ async function main() {
         name: 'SQL Server',
         categoryId: databaseCategory.id,
         description: 'T-SQL, stored procedures, indexes, and query optimization',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -245,7 +245,7 @@ async function main() {
         name: 'Git Version Control',
         categoryId: cloudCategory.id,
         description: 'Version control workflows, branching strategies, and collaboration',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -253,7 +253,7 @@ async function main() {
         name: 'Unit Testing (xUnit)',
         categoryId: frameworkCategory.id,
         description: 'Test-driven development with xUnit, testing patterns, and mocking',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
     prisma.skill.create({
@@ -261,7 +261,7 @@ async function main() {
         name: 'Azure DevOps',
         categoryId: cloudCategory.id,
         description: 'CI/CD pipelines, work item tracking, and Azure integration',
-        proficiencyLevels: JSON.stringify(['Beginner', 'Intermediate', 'Advanced', 'Expert']),
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
   ]);
@@ -412,9 +412,10 @@ async function main() {
   const csharpQuestions = [
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id, // C# Programming
       questionText: 'What is the correct syntax to define a class in C#?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['class MyClass { }', 'Class MyClass { }', 'def class MyClass:', 'MyClass class { }']),
+      options: ['class MyClass { }', 'Class MyClass { }', 'def class MyClass:', 'MyClass class { }'],
       correctAnswer: 'class MyClass { }',
       marks: 10,
       difficultyLevel: 'BEGINNER' as CompetencyLevel,
@@ -422,6 +423,7 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'C# is a statically typed language',
       questionType: 'TRUE_FALSE' as QuestionType,
       correctAnswer: 'true',
@@ -431,6 +433,7 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'The keyword to define a constant in C# is ____',
       questionType: 'FILL_BLANK' as QuestionType,
       correctAnswer: 'const',
@@ -440,9 +443,10 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'What does LINQ stand for?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['Language Integrated Query', 'Linear Integrated Query', 'Language Interface Query', 'Linked Query']),
+      options: ['Language Integrated Query', 'Linear Integrated Query', 'Language Interface Query', 'Linked Query'],
       correctAnswer: 'Language Integrated Query',
       marks: 10,
       difficultyLevel: 'INTERMEDIATE' as CompetencyLevel,
@@ -450,6 +454,7 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'Explain the difference between async and await keywords in C#',
       questionType: 'DESCRIPTIVE' as QuestionType,
       marks: 20,
@@ -458,9 +463,10 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'What is the purpose of using statements in C#?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['Import namespaces', 'Dispose resources', 'Both A and B', 'None of the above']),
+      options: ['Import namespaces', 'Dispose resources', 'Both A and B', 'None of the above'],
       correctAnswer: 'Both A and B',
       marks: 10,
       difficultyLevel: 'INTERMEDIATE' as CompetencyLevel,
@@ -468,6 +474,7 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'Interfaces in C# can contain method implementations',
       questionType: 'TRUE_FALSE' as QuestionType,
       correctAnswer: 'true',
@@ -477,6 +484,7 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'The access modifier that allows access only within the same class is ____',
       questionType: 'FILL_BLANK' as QuestionType,
       correctAnswer: 'private',
@@ -486,9 +494,10 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'Which of these is NOT a valid access modifier in C#?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['private', 'protected', 'package', 'internal']),
+      options: ['private', 'protected', 'package', 'internal'],
       correctAnswer: 'package',
       marks: 10,
       difficultyLevel: 'INTERMEDIATE' as CompetencyLevel,
@@ -496,6 +505,7 @@ async function main() {
     },
     {
       assessmentId: assessments[0].id,
+      skillId: skills[0].id,
       questionText: 'Describe the concept of dependency injection in C# and its benefits',
       questionType: 'DESCRIPTIVE' as QuestionType,
       marks: 20,
@@ -508,6 +518,7 @@ async function main() {
   const blazorQuestions = [
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id, // .NET Blazor
       questionText: 'What is the file extension for Blazor components?',
       questionType: 'FILL_BLANK' as QuestionType,
       correctAnswer: '.razor',
@@ -517,9 +528,10 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'How do you bind a property to an input element in Blazor?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['@bind', '@model', '@value', '@data']),
+      options: ['@bind', '@model', '@value', '@data'],
       correctAnswer: '@bind',
       marks: 10,
       difficultyLevel: 'BEGINNER' as CompetencyLevel,
@@ -527,6 +539,7 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'Blazor WebAssembly runs on the server',
       questionType: 'TRUE_FALSE' as QuestionType,
       correctAnswer: 'false',
@@ -536,6 +549,7 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'What directive is used to inject a service in a Blazor component?',
       questionType: 'FILL_BLANK' as QuestionType,
       correctAnswer: '@inject',
@@ -545,9 +559,10 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'Which lifecycle method is called when a component is initialized?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['OnInitialized', 'OnParametersSet', 'OnAfterRender', 'OnStart']),
+      options: ['OnInitialized', 'OnParametersSet', 'OnAfterRender', 'OnStart'],
       correctAnswer: 'OnInitialized',
       marks: 10,
       difficultyLevel: 'INTERMEDIATE' as CompetencyLevel,
@@ -555,6 +570,7 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'Explain the difference between Blazor Server and Blazor WebAssembly',
       questionType: 'DESCRIPTIVE' as QuestionType,
       marks: 15,
@@ -563,6 +579,7 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'Event handlers in Blazor use the @ prefix',
       questionType: 'TRUE_FALSE' as QuestionType,
       correctAnswer: 'true',
@@ -572,6 +589,7 @@ async function main() {
     },
     {
       assessmentId: assessments[1].id,
+      skillId: skills[2].id,
       questionText: 'Describe how cascading parameters work in Blazor components',
       questionType: 'DESCRIPTIVE' as QuestionType,
       marks: 15,
@@ -584,9 +602,10 @@ async function main() {
   const fullStackQuestions = [
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id, // ASP.NET Core
       questionText: 'What is Entity Framework Core?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['ORM for .NET', 'Database engine', 'Web framework', 'Testing framework']),
+      options: ['ORM for .NET', 'Database engine', 'Web framework', 'Testing framework'],
       correctAnswer: 'ORM for .NET',
       marks: 10,
       difficultyLevel: 'BEGINNER' as CompetencyLevel,
@@ -594,6 +613,7 @@ async function main() {
     },
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id,
       questionText: 'RESTful APIs use HTTP methods like GET, POST, PUT, DELETE',
       questionType: 'TRUE_FALSE' as QuestionType,
       correctAnswer: 'true',
@@ -603,6 +623,7 @@ async function main() {
     },
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id,
       questionText: 'The attribute used to define a route in ASP.NET Core is ____',
       questionType: 'FILL_BLANK' as QuestionType,
       correctAnswer: '[Route]',
@@ -612,9 +633,10 @@ async function main() {
     },
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id,
       questionText: 'Which of these is used for authentication in ASP.NET Core?',
       questionType: 'MCQ' as QuestionType,
-      options: JSON.stringify(['JWT', 'Cookies', 'OAuth', 'All of the above']),
+      options: ['JWT', 'Cookies', 'OAuth', 'All of the above'],
       correctAnswer: 'All of the above',
       marks: 15,
       difficultyLevel: 'ADVANCED' as CompetencyLevel,
@@ -622,6 +644,7 @@ async function main() {
     },
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id,
       questionText: 'Code First approach in EF Core allows creating database from C# models',
       questionType: 'TRUE_FALSE' as QuestionType,
       correctAnswer: 'true',
@@ -631,6 +654,7 @@ async function main() {
     },
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id,
       questionText: 'Explain the repository pattern and its benefits in a .NET application',
       questionType: 'DESCRIPTIVE' as QuestionType,
       marks: 40,
@@ -639,6 +663,7 @@ async function main() {
     },
     {
       assessmentId: assessments[2].id,
+      skillId: skills[1].id,
       questionText: 'Design a simple REST API structure for a blog application with posts and comments. Include endpoints and HTTP methods.',
       questionType: 'DESCRIPTIVE' as QuestionType,
       marks: 50,

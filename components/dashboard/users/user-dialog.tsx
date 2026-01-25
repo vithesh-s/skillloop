@@ -34,8 +34,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { RiLoader4Line, RiArrowDownSLine, RiCheckLine, RiCloseLine } from "@remixicon/react";
+import { RiLoader4Line, RiArrowDownSLine, RiCheckLine, RiCloseLine, RiErrorWarningLine } from "@remixicon/react";
 import { toast } from "sonner";
 
 interface User {
@@ -121,13 +122,21 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] overflow-visible">
+      <DialogContent className="sm:max-w-106.25 overflow-visible">
         <DialogHeader>
           <DialogTitle>{user ? "Edit User" : "Create New User"}</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="systemRoles" value={JSON.stringify(selectedSystemRoles)} />
           
+          {state.message && !state.success && (
+            <Alert variant="destructive">
+              <RiErrorWarningLine className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{state.message}</AlertDescription>
+            </Alert>
+          )}
+
           <div>
             <Label htmlFor="name">Full Name *</Label>
             <Input
@@ -165,7 +174,7 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
                 <div
                   role="combobox"
                   aria-expanded={comboboxOpen}
-                  className="flex min-h-[2.5rem] w-full flex-wrap items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer"
+                  className="flex min-h-10 w-full flex-wrap items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-pointer"
                   onClick={() => setComboboxOpen(true)}
                 >
                   {selectedSystemRoles.length > 0 ? (
@@ -196,7 +205,7 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
                   </div>
                 </div>
               </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 z-[100]" align="start">
+              <PopoverContent className="w-75 p-0 z-100" align="start">
                 <Command>
                   <CommandInput placeholder="Search roles..." />
                   <CommandList>
@@ -240,7 +249,7 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
               <SelectTrigger>
                 <SelectValue placeholder="Select job role" />
               </SelectTrigger>
-              <SelectContent className="z-[100]">
+              <SelectContent className="z-100">
                 {roles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>
                     {role.name}

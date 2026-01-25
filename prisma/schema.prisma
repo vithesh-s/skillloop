@@ -91,6 +91,7 @@ model User {
   employeeNo     String?   @unique
   name           String
   email          String    @unique
+  emailVerified  DateTime?
   password       String?
   systemRoles    Role[]    @default([LEARNER])
   designation    String?
@@ -130,6 +131,8 @@ model User {
   createdTrainings   Training[]
   traineeAssignments TrainingAssignment[]  @relation("TrainerAssignments")
   mentorAssignments  TrainingAssignment[]  @relation("MentorAssignments")
+  assessmentAssignments AssessmentAssignment[] 
+  assignedAssessments   AssessmentAssignment[] @relation("AssignedBy")
 
   // NextAuth.js relations
   accounts Account[]
@@ -225,6 +228,7 @@ model Skill {
 
   category          SkillCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   assessments       Assessment[]
+  questions         Question[]
   skillMatrix       SkillMatrix[]
   trainings         Training[]
   roleCompetencies  RoleCompetency[]
@@ -254,6 +258,7 @@ model Assessment {
   @@index([createdById])
   questions Question[]
   attempts  AssessmentAttempt[]
+  assignments AssessmentAssignment[]
 
   @@index([skillId])
 }
@@ -262,6 +267,7 @@ model Assessment {
 model Question {
   id             String          @id @default(cuid())
   assessmentId   String
+  skillId        String
   questionText   String
   questionType   QuestionType
   options        Json?           // For MCQ options as JSON array
@@ -274,8 +280,10 @@ model Question {
   updatedAt      DateTime        @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  skill      Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
   answers    Answer[]
   @@index([difficultyLevel])
+  @@index([skillId])
 
   @@index([assessmentId])
 }
@@ -299,6 +307,25 @@ model AssessmentAttempt {
   @@index([userId])
   @@index([status])
   @@index([completedAt])
+  @@index([assessmentId])
+}
+
+// 5.5 AssessmentAssignment - Explicit assignment of assessments to users
+model AssessmentAssignment {
+  id           String    @id @default(cuid())
+  assessmentId String
+  userId       String
+  assignedById String
+  assignedAt   DateTime  @default(now())
+  dueDate      DateTime?
+  status       String    @default("PENDING") // PENDING, COMPLETED
+  
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy   User       @relation("AssignedBy", fields: [assignedById], references: [id])
+
+  @@unique([assessmentId, userId])
+  @@index([userId])
   @@index([assessmentId])
 }
 

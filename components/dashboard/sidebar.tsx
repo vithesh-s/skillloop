@@ -12,6 +12,7 @@ import {
   RiGraduationCapLine,
   RiFileChartLine,
   RiFolderLine,
+  RiEditLine,
 } from "@remixicon/react";
 
 interface SidebarProps {
@@ -44,6 +45,11 @@ const adminNavItems = [
     icon: RiUserLine,
   },
   {
+    title: "Assessments",
+    href: "/admin/assessments",
+    icon: RiFileChartLine,
+  },
+  {
     title: "System Config",
     href: "/admin/config",
     icon: RiSettings3Line,
@@ -65,6 +71,11 @@ const trainerNavItems = [
     title: "Assessments",
     href: "/trainer/assessments",
     icon: RiFileChartLine,
+  },
+  {
+    title: "Grading",
+    href: "/trainer/grading",
+    icon: RiEditLine,
   },
 ];
 
