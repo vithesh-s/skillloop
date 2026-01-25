@@ -1,0 +1,471 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  ADMIN
+  TRAINER
+  EMPLOYEE
+  MANAGER
+}
+
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum QuestionType {
+  MCQ
+  DESCRIPTIVE
+  TRUE_FALSE
+  FILL_BLANK
+}
+
+enum TrainingMode {
+  ONLINE
+  OFFLINE
+}
+
+enum TrainingStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CompetencyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum ProofStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum NotificationType {
+  ASSESSMENT_ASSIGNED
+  TRAINING_ASSIGNED
+  PROGRESS_DUE
+  FEEDBACK_PENDING
+  PROOF_SUBMITTED
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+// 1. User - Core employee/user model with hierarchical relationships
+model User {
+  id             String   @id @default(cuid())
+  employeeNo     String   @unique
+  name           String
+  email          String   @unique
+  role           Role     @default(EMPLOYEE)
+  designation    String
+  department     String
+  location       String
+  managerId      String?
+  dateOfJoining  DateTime @default(now())
+  resigned       Boolean  @default(false)
+  level          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Self-referential relationship for manager-reportee hierarchy
+  manager   User?  @relation("ManagerReportees", fields: [managerId], references: [id], onDelete: SetNull)
+  reportees User[] @relation("ManagerReportees")
+
+  // Relations to other models
+  assessmentAttempts AssessmentAttempt[]
+  skillMatrix        SkillMatrix[]
+  trainingAssignments TrainingAssignment[]
+  proofsReviewed     ProofOfCompletion[]   @relation("ProofReviewer")
+  attendance         Attendance[]
+  feedbackSubmitted  Feedback[]
+  notifications      Notification[]
+  createdAssessments Assessment[]
+  createdTrainings   Training[]
+  traineeAssignments TrainingAssignment[]  @relation("TrainerAssignments")
+  mentorAssignments  TrainingAssignment[]  @relation("MentorAssignments")
+
+  // NextAuth.js relations
+  accounts Account[]
+  sessions Session[]
+
+  @@index([email])
+  @@index([employeeNo])
+}
+
+// NextAuth.js Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// 2. Skill - Skills catalog
+model Skill {
+  id          String   @id @default(cuid())
+  skillName   String
+  category    String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessments       Assessment[]
+  skillMatrix       SkillMatrix[]
+  trainings         Training[]
+  roleCompetencies  RoleCompetency[]
+}
+
+// 3. Assessment - Pre/Post assessments for skills
+model Assessment {
+  id              String           @id @default(cuid())
+  title           String
+  description     String?
+  skillId         String
+  totalMarks      Int
+  passingScore    Int
+  duration        Int              // in minutes
+  status          AssessmentStatus @default(DRAFT)
+  isPreAssessment Boolean          @default(false)
+  createdById     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  skill     Skill               @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  creator   User                @relation(fields: [createdById], references: [id])
+  questions Question[]
+  attempts  AssessmentAttempt[]
+
+  @@index([skillId])
+}
+
+// 4. Question - Assessment questions with various types
+model Question {
+  id             String          @id @default(cuid())
+  assessmentId   String
+  questionText   String
+  questionType   QuestionType
+  options        Json?           // For MCQ options as JSON array
+  correctAnswer  String?
+  marks          Int
+  difficultyLevel CompetencyLevel
+  aiGenerated    Boolean         @default(false)
+  orderIndex     Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers    Answer[]
+
+  @@index([assessmentId])
+}
+
+// 5. AssessmentAttempt - Track user assessment attempts
+model AssessmentAttempt {
+  id           String    @id @default(cuid())
+  assessmentId String
+  userId       String
+  score        Int?
+  percentage   Float?
+  status       String    // e.g., "in_progress", "completed", "grading"
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers    Answer[]
+
+  @@index([userId])
+  @@index([assessmentId])
+}
+
+// 6. Answer - Individual question answers with AI grading support
+model Answer {
+  id                  String   @id @default(cuid())
+  attemptId           String
+  questionId          String
+  answerText          String
+  isCorrect           Boolean?
+  marksAwarded        Int?
+  aiGradingSuggestion Json?    // AI-based grading suggestions
+  trainerFeedback     String?
+  createdAt           DateTime @default(now())
+
+  attempt  AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+// 7. SkillMatrix - User skill gaps and competency tracking
+model SkillMatrix {
+  id               String           @id @default(cuid())
+  userId           String
+  skillId          String
+  desiredLevel     CompetencyLevel
+  currentLevel     CompetencyLevel?
+  gapPercentage    Float?
+  lastAssessedDate DateTime?
+  status           String           // e.g., "gap_identified", "training_assigned", "completed"
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([userId])
+}
+
+// 8. Training - Training programs (online/offline)
+model Training {
+  id              String        @id @default(cuid())
+  topicName       String
+  description     String?
+  mode            TrainingMode
+  duration        Int           // in hours
+  skillId         String
+  resources       Json?         // Links, files, etc.
+  venue           String?
+  meetingLink     String?
+  maxParticipants Int?
+  createdById     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  skill           Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  creator         User                 @relation(fields: [createdById], references: [id])
+  onlineTraining  OnlineTraining?
+  offlineTraining OfflineTraining?
+  assignments     TrainingAssignment[]
+  calendar        TrainingCalendar[]
+}
+
+// 9. OnlineTraining - Online-specific training metadata
+model OnlineTraining {
+  id                String   @id @default(cuid())
+  trainingId        String   @unique
+  resourceLinks     Json     // Array of resource links
+  estimatedDuration Int      // in hours
+  mentorRequired    Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+}
+
+// 10. OfflineTraining - Offline-specific training metadata
+model OfflineTraining {
+  id         String   @id @default(cuid())
+  trainingId String   @unique
+  schedule   Json     // Training schedule details
+  venue      String
+  materials  Json?    // Physical materials needed
+  trainerIds Json     // Array of trainer user IDs
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+}
+
+// 11. TrainingAssignment - Assign trainings to users with mentors
+model TrainingAssignment {
+  id                   String          @id @default(cuid())
+  trainingId           String
+  userId               String
+  trainerId            String?
+  mentorId             String?
+  startDate            DateTime
+  targetCompletionDate DateTime
+  completionDate       DateTime?
+  status               TrainingStatus  @default(ASSIGNED)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  training        Training            @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainer         User?               @relation("TrainerAssignments", fields: [trainerId], references: [id], onDelete: SetNull)
+  mentor          User?               @relation("MentorAssignments", fields: [mentorId], references: [id], onDelete: SetNull)
+  progressUpdates ProgressUpdate[]
+  proofs          ProofOfCompletion[]
+  feedback        Feedback[]
+
+  @@index([userId])
+}
+
+// 12. ProgressUpdate - Weekly progress tracking
+model ProgressUpdate {
+  id                   String   @id @default(cuid())
+  assignmentId         String
+  weekNumber           Int
+  completionPercentage Int
+  topicsCovered        String?
+  timeSpent            Int?     // in hours
+  challenges           String?
+  nextPlan             String?
+  mentorComments       String?
+  updateDate           DateTime
+  createdAt            DateTime @default(now())
+
+  assignment TrainingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, weekNumber])
+}
+
+// 13. ProofOfCompletion - Upload and review completion proofs
+model ProofOfCompletion {
+  id               String      @id @default(cuid())
+  assignmentId     String
+  fileName         String
+  filePath         String
+  uploadDate       DateTime    @default(now())
+  status           ProofStatus @default(PENDING)
+  reviewerId       String?
+  reviewerComments String?
+  reviewedAt       DateTime?
+  createdAt        DateTime    @default(now())
+
+  assignment TrainingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  reviewer   User?              @relation("ProofReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+}
+
+// 14. Attendance - Training session attendance
+model Attendance {
+  id         String           @id @default(cuid())
+  calendarId String
+  userId     String
+  status     AttendanceStatus
+  remarks    String?
+  recordedAt DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+
+  calendar TrainingCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, userId])
+}
+
+// 15. TrainingCalendar - Schedule training sessions
+model TrainingCalendar {
+  id              String    @id @default(cuid())
+  trainingId      String
+  trainingDate    DateTime
+  venue           String?
+  meetingLink     String?
+  maxParticipants Int?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  training   Training     @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+}
+
+// 16. Feedback - Training and trainer feedback
+model Feedback {
+  id              String   @id @default(cuid())
+  assignmentId    String
+  submittedById   String
+  trainerRating   Int?     // 1-5 rating
+  contentRating   Int?     // 1-5 rating
+  logisticsRating Int?     // 1-5 rating
+  overallRating   Int?     // 1-5 rating
+  comments        String?
+  submittedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  assignment TrainingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  submitter  User               @relation(fields: [submittedById], references: [id], onDelete: Cascade)
+}
+
+// 17. Notification - System notifications
+model Notification {
+  id          String           @id @default(cuid())
+  recipientId String
+  type        NotificationType
+  subject     String
+  message     String
+  sentDate    DateTime         @default(now())
+  readStatus  Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+}
+
+// 18. SystemConfig - Application configuration
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+// 19. RoleCompetency - Role-skill competency frameworks
+model RoleCompetency {
+  id            String          @id @default(cuid())
+  jobRole       String
+  skillId       String
+  requiredLevel CompetencyLevel
+  isMandatory   Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([jobRole, skillId])
+}
+

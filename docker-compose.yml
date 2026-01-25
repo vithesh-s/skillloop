@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: skillloop-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: skillloop
+      POSTGRES_PASSWORD: pctadmin$1234
+      POSTGRES_DB: skillloop_db
+      # Optional: Set timezone
+      TZ: Asia/Kolkata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: Mount init scripts
+      # - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillloop -d skillloop_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - skillloop-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  skillloop-network:
+    driver: bridge
