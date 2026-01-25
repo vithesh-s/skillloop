@@ -73,20 +73,21 @@ enum NotificationType {
 
 // 1. User - Core employee/user model with hierarchical relationships
 model User {
-  id             String   @id @default(cuid())
-  employeeNo     String   @unique
+  id             String    @id @default(cuid())
+  employeeNo     String    @unique
   name           String
-  email          String   @unique
-  role           Role     @default(EMPLOYEE)
+  email          String    @unique
+  emailVerified  DateTime?
+  role           Role      @default(EMPLOYEE)
   designation    String
   department     String
   location       String
   managerId      String?
-  dateOfJoining  DateTime @default(now())
-  resigned       Boolean  @default(false)
+  dateOfJoining  DateTime  @default(now())
+  resigned       Boolean   @default(false)
   level          Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Self-referential relationship for manager-reportee hierarchy
   manager   User?  @relation("ManagerReportees", fields: [managerId], references: [id], onDelete: SetNull)
@@ -151,6 +152,23 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// OTP Model for OTP-based authentication
+model OTP {
+  id        String   @id @default(cuid())
+  email     String
+  code      String   @db.Char(6)
+  attempts  Int      @default(0)
+  maxAttempts Int    @default(5)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+
+  @@unique([email, code])
+  @@index([email])
+  @@index([expiresAt])
 }
 
 // 2. Skill - Skills catalog
