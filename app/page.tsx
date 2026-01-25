@@ -29,9 +29,9 @@ export default async function Page() {
   }
 
   const { user } = session
-  const isAdmin = user.role === 'ADMIN'
-  const isTrainer = user.role === 'TRAINER' || isAdmin
-  const isManager = user.role === 'MANAGER' || isAdmin
+  const isAdmin = user.systemRoles.includes('ADMIN')
+  const isTrainer = user.systemRoles.includes('TRAINER') || isAdmin
+  const isManager = user.systemRoles.includes('MANAGER') || isAdmin
 
   return (
     <div className="min-h-screen bg-linear-to-br from-emerald-50 to-slate-50">
@@ -51,9 +51,13 @@ export default async function Page() {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-sm font-medium text-slate-900">{user.name}</p>
-                <Badge variant="secondary" className="text-xs">
-                  {user.role}
-                </Badge>
+                <div className="flex gap-1 justify-end">
+                  {user.systemRoles.map((role) => (
+                    <Badge key={role} variant="secondary" className="text-xs">
+                      {role}
+                    </Badge>
+                  ))}
+                </div>
               </div>
               <form action={async () => {
                 'use server'

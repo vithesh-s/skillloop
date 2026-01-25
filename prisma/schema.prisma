@@ -11,8 +11,22 @@ datasource db {
 enum Role {
   ADMIN
   TRAINER
-  EMPLOYEE
+  MENTOR
   MANAGER
+  LEARNER
+}
+
+enum RoleLevel {
+  ENTRY
+  MID
+  SENIOR
+  LEAD
+}
+
+enum CompetencyPriority {
+  REQUIRED
+  PREFERRED
+  OPTIONAL
 }
 
 enum AssessmentStatus {
@@ -74,24 +88,35 @@ enum NotificationType {
 // 1. User - Core employee/user model with hierarchical relationships
 model User {
   id             String    @id @default(cuid())
-  employeeNo     String    @unique
+  employeeNo     String?   @unique
   name           String
   email          String    @unique
-  emailVerified  DateTime?
-  role           Role      @default(EMPLOYEE)
-  designation    String
-  department     String
-  location       String
+  password       String?
+  systemRoles    Role[]    @default([LEARNER])
+  designation    String?
+  department     String?
+  location       String?
   managerId      String?
+  roleId         String?   // Job role ID
   dateOfJoining  DateTime  @default(now())
   resigned       Boolean   @default(false)
-  level          Int
+  level          Int?
+  
+  // Profile fields
+  bio            String?
+  avatar         String?
+  phone          String?
+  linkedin       String?
+  
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   // Self-referential relationship for manager-reportee hierarchy
   manager   User?  @relation("ManagerReportees", fields: [managerId], references: [id], onDelete: SetNull)
   reportees User[] @relation("ManagerReportees")
+  
+  // Job role assignment
+  assignedRole JobRole? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   // Relations to other models
   assessmentAttempts AssessmentAttempt[]
@@ -112,6 +137,9 @@ model User {
 
   @@index([email])
   @@index([employeeNo])
+  @@index([department])
+  @@index([managerId])
+  @@index([roleId])
 }
 
 // NextAuth.js Models
@@ -171,19 +199,38 @@ model OTP {
   @@index([expiresAt])
 }
 
-// 2. Skill - Skills catalog
-model Skill {
+// 1.5. SkillCategory - Dynamic skill categories with fixed colors
+model SkillCategory {
   id          String   @id @default(cuid())
-  skillName   String
-  category    String
+  name        String   @unique
   description String?
+  colorClass  String   // Tailwind color class (e.g., "blue-500")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  skills Skill[]
+
+  @@index([name])
+}
+
+// 2. Skill - Skills catalog
+model Skill {
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  categoryId         String
+  description        String?
+  proficiencyLevels  Json     // Array of proficiency levels
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  category          SkillCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   assessments       Assessment[]
   skillMatrix       SkillMatrix[]
   trainings         Training[]
   roleCompetencies  RoleCompetency[]
+  
+  @@index([categoryId])
+  @@index([name])
 }
 
 // 3. Assessment - Pre/Post assessments for skills
@@ -203,6 +250,8 @@ model Assessment {
 
   skill     Skill               @relation(fields: [skillId], references: [id], onDelete: Cascade)
   creator   User                @relation(fields: [createdById], references: [id])
+  @@index([status])
+  @@index([createdById])
   questions Question[]
   attempts  AssessmentAttempt[]
 
@@ -226,6 +275,7 @@ model Question {
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   answers    Answer[]
+  @@index([difficultyLevel])
 
   @@index([assessmentId])
 }
@@ -247,6 +297,8 @@ model AssessmentAttempt {
   answers    Answer[]
 
   @@index([userId])
+  @@index([status])
+  @@index([completedAt])
   @@index([assessmentId])
 }
 
@@ -281,6 +333,8 @@ model SkillMatrix {
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  @@index([skillId])
+  @@index([status])
 
   @@unique([userId, skillId])
   @@index([userId])
@@ -304,6 +358,10 @@ model Training {
 
   skill           Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
   creator         User                 @relation(fields: [createdById], references: [id])
+  
+  @@index([skillId])
+  @@index([mode])
+  @@index([createdById])
   onlineTraining  OnlineTraining?
   offlineTraining OfflineTraining?
   assignments     TrainingAssignment[]
@@ -354,6 +412,9 @@ model TrainingAssignment {
   training        Training            @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   trainer         User?               @relation("TrainerAssignments", fields: [trainerId], references: [id], onDelete: SetNull)
+  @@index([trainingId])
+  @@index([status])
+  @@index([targetCompletionDate])
   mentor          User?               @relation("MentorAssignments", fields: [mentorId], references: [id], onDelete: SetNull)
   progressUpdates ProgressUpdate[]
   proofs          ProofOfCompletion[]
@@ -461,29 +522,56 @@ model Notification {
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId])
+  @@index([readStatus])
+  @@index([type])
 }
 
-// 18. SystemConfig - Application configuration
+// 18. SystemConfig - System configuration settings
 model SystemConfig {
   id          String   @id @default(cuid())
   key         String   @unique
-  value       Json
+  value       String
   description String?
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  @@index([key])
 }
 
-// 19. RoleCompetency - Role-skill competency frameworks
+// 19. JobRole - Job role definitions with competency requirements
+model JobRole {
+  id           String     @id @default(cuid())
+  name         String     @unique
+  department   String
+  level        RoleLevel
+  description  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  competencies RoleCompetency[]
+  users        User[]
+  
+  @@index([department])
+  @@index([level])
+  @@index([name])
+}
+
+// 20. RoleCompetency - Role-skill competency frameworks
 model RoleCompetency {
-  id            String          @id @default(cuid())
-  jobRole       String
+  id            String              @id @default(cuid())
+  roleId        String
   skillId       String
-  requiredLevel CompetencyLevel
-  isMandatory   Boolean         @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  requiredLevel String
+  priority      CompetencyPriority  @default(REQUIRED)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
-  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  role  JobRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  skill Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
-  @@unique([jobRole, skillId])
+  @@unique([roleId, skillId])
+  @@index([roleId])
+  @@index([skillId])
+  @@index([priority])
 }
 

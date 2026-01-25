@@ -69,7 +69,7 @@ export async function checkAuthorization(allowedRoles: string[]) {
         return { authorized: false, user: null }
     }
 
-    const authorized = allowedRoles.includes(user.role)
+    const authorized = allowedRoles.some(role => user.systemRoles.includes(role))
     return { authorized, user }
 }
 
@@ -98,7 +98,7 @@ export async function requireAuth() {
 export async function requireRole(allowedRoles: string[]) {
     const session = await requireAuth()
 
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!allowedRoles.some(role => session.user.systemRoles.includes(role))) {
         redirect('/unauthorized')
     }
 

@@ -953,7 +953,7 @@ export async function getAllConfigAction() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-64" /> {/* Page title */}
-        <Skeleton className="h-[400px] w-full" /> {/* Main content */}
+        <Skeleton className="h-100 w-full" /> {/* Main content */}
       </div>
     )
   }
@@ -989,7 +989,7 @@ export async function getAllConfigAction() {
     }, [error])
   
     return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center">
+      <div className="flex min-h-100 flex-col items-center justify-center">
         <Alert variant="destructive" className="max-w-md">
           <RiErrorWarningLine className="h-4 w-4" />
           <AlertTitle>Something went wrong</AlertTitle>

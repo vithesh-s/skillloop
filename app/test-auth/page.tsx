@@ -118,7 +118,7 @@ export default async function TestAuthPage() {
                 <div>
                   <p className="text-sm text-slate-600">Role</p>
                   <Badge variant="secondary" className="mt-1">
-                    {user.role}
+                    {user.systemRoles.join(', ')}
                   </Badge>
                 </div>
               </div>

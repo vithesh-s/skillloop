@@ -52,7 +52,7 @@ export function useRequireRole(allowedRoles: string[]) {
     const router = useRouter()
     const { user, isLoading } = useRequireAuth()
 
-    if (!isLoading && user && !allowedRoles.includes(user.role)) {
+    if (!isLoading && user && !allowedRoles.some(role => user.systemRoles.includes(role))) {
         router.push('/unauthorized')
     }
 
@@ -68,7 +68,7 @@ export function useRequireRole(allowedRoles: string[]) {
 export function useHasRole(allowedRoles: string[]): boolean {
     const { user } = useSession()
     if (!user) return false
-    return allowedRoles.includes(user.role)
+    return allowedRoles.some(role => user.systemRoles.includes(role))
 }
 
 /**

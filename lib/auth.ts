@@ -59,10 +59,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     console.log('✅ User authorized:', user.id)
                     return {
                         id: user.id,
-                        email: user.email,
-                        name: user.name,
-                        role: user.role,
-                        employeeNo: user.employeeNo,
+                        email: user.email || '',
+                        name: user.name || '',
+                        systemRoles: user.systemRoles,
+                        employeeNo: user.employeeNo || '',
                         department: user.department,
                         designation: user.designation,
                         location: user.location,
@@ -91,7 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // On signin, add user data to token
             if (user) {
                 token.id = user.id
-                token.role = user.role
+                token.systemRoles = user.systemRoles
                 token.employeeNo = user.employeeNo
                 token.department = user.department
                 token.designation = user.designation
@@ -107,7 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async session({ session, token }) {
             if (session.user && token) {
                 session.user.id = token.id as string
-                session.user.role = token.role as string
+                session.user.systemRoles = token.systemRoles as string[]
                 session.user.employeeNo = token.employeeNo as string
                 session.user.department = token.department as string
                 session.user.designation = token.designation as string

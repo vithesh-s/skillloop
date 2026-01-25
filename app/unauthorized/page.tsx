@@ -33,9 +33,9 @@ export default async function UnauthorizedPage() {
         <CardContent className="space-y-4">
           <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-600">Your Role:</span>
+              <span className="text-slate-600">Your Roles:</span>
               <span className="font-medium text-slate-900">
-                {session.user.role}
+                {session.user.systemRoles?.join(', ') || 'No roles assigned'}
               </span>
             </div>
             <div className="flex justify-between">

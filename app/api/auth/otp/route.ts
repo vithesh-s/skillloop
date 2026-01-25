@@ -54,36 +54,18 @@ export async function POST(req: NextRequest) {
             console.log('👤 User found:', user?.id)
 
             if (!user) {
-                // Create a new user with minimal info
-                user = await db.user.create({
-                    data: {
-                        email,
-                        name: email.split('@')[0],
-                        employeeNo: `EMP-${Date.now()}`,
-                        designation: 'Employee',
-                        department: 'General',
-                        location: 'Default',
-                        level: 1,
-                        emailVerified: new Date(),
-                    },
-                })
-                console.log('✅ New user created:', user.id)
-            } else if (!user.emailVerified) {
-                // Mark email as verified if it wasn't
-                await db.user.update({
-                    where: { id: user.id },
-                    data: { emailVerified: new Date() },
-                })
-                console.log('✅ User email verified')
+                console.log(`User not found for email ${email}.`)
             }
+            else {
 
-            // Return userId for client-side signin
-            console.log('📤 Returning success response with userId:', user.id)
-            return NextResponse.json({
-                success: true,
-                message: 'OTP verified successfully',
-                userId: user.id,
-            })
+                // Return userId for client-side signin only after successful OTP verification
+                console.log('📤 Returning success response with userId:', user.id)
+                return NextResponse.json({
+                    success: true,
+                    message: 'OTP verified successfully',
+                    userId: user.id,
+                })
+            }
         }
 
         return NextResponse.json(

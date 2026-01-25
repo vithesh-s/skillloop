@@ -8,45 +8,55 @@ import { redirect } from 'next/navigation'
  */
 
 /**
- * Check if user has any of the specified roles
+ * Check if user has any of the specified roles in their systemRoles array
  * 
- * @param userRole - User's current role
+ * @param userRoles - User's systemRoles array
  * @param allowedRoles - Array of allowed roles
- * @returns true if user has required role
+ * @returns true if user has at least one required role
  */
-export function hasRole(userRole: string | undefined, allowedRoles: string[]): boolean {
-    if (!userRole) return false
-    return allowedRoles.includes(userRole)
+export function hasRole(userRoles: string[] | undefined, allowedRoles: string[]): boolean {
+    if (!userRoles || userRoles.length === 0) return false
+    return allowedRoles.some(role => userRoles.includes(role))
 }
 
 /**
  * Check if user is admin
  * 
- * @param userRole - User's current role
- * @returns true if user is ADMIN
+ * @param userRoles - User's systemRoles array
+ * @returns true if user has ADMIN role
  */
-export function isAdmin(userRole: string | undefined): boolean {
-    return userRole === 'ADMIN'
+export function isAdmin(userRoles: string[] | undefined): boolean {
+    return hasRole(userRoles, ['ADMIN'])
 }
 
 /**
  * Check if user is trainer (or admin)
  * 
- * @param userRole - User's current role
- * @returns true if user is TRAINER or ADMIN
+ * @param userRoles - User's systemRoles array
+ * @returns true if user has TRAINER or ADMIN role
  */
-export function isTrainer(userRole: string | undefined): boolean {
-    return hasRole(userRole, ['TRAINER', 'ADMIN'])
+export function isTrainer(userRoles: string[] | undefined): boolean {
+    return hasRole(userRoles, ['TRAINER', 'ADMIN'])
 }
 
 /**
  * Check if user is manager (or admin)
  * 
- * @param userRole - User's current role
- * @returns true if user is MANAGER or ADMIN
+ * @param userRoles - User's systemRoles array
+ * @returns true if user has MANAGER or ADMIN role
  */
-export function isManager(userRole: string | undefined): boolean {
-    return hasRole(userRole, ['MANAGER', 'ADMIN'])
+export function isManager(userRoles: string[] | undefined): boolean {
+    return hasRole(userRoles, ['MANAGER', 'ADMIN'])
+}
+
+/**
+ * Check if user can assign roles (admin or manager)
+ * 
+ * @param userRoles - User's systemRoles array
+ * @returns true if user has ADMIN or MANAGER role
+ */
+export function canAssignRoles(userRoles: string[] | undefined): boolean {
+    return hasRole(userRoles, ['ADMIN', 'MANAGER'])
 }
 
 /**
@@ -118,7 +128,7 @@ export async function getSessionOrRedirect() {
 export async function getSessionWithRole(allowedRoles: string[]) {
     const session = await getSessionOrRedirect()
 
-    if (!hasRole(session.user.role, allowedRoles)) {
+    if (!hasRole(session.user.systemRoles, allowedRoles)) {
         redirect('/unauthorized')
     }
 

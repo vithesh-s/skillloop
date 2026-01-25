@@ -23,17 +23,17 @@ async function updateUserToAdmin() {
         console.log(`👤 Current user details:`)
         console.log(`   Name: ${user.name}`)
         console.log(`   Email: ${user.email}`)
-        console.log(`   Current Role: ${user.role}`)
+        console.log(`   Current System Roles: ${user.systemRoles.join(', ')}`)
         console.log(`   Department: ${user.department}`)
 
-        // Update role to ADMIN
+        // Update roles to ADMIN, MANAGER, and LEARNER
         const updatedUser = await db.user.update({
             where: { email },
-            data: { role: 'ADMIN' }
+            data: { systemRoles: ['ADMIN', 'MANAGER', 'LEARNER'] }
         })
 
-        console.log(`\n✅ Successfully updated to ADMIN`)
-        console.log(`   New Role: ${updatedUser.role}`)
+        console.log(`\n✅ Successfully updated roles`)
+        console.log(`   New System Roles: ${updatedUser.systemRoles.join(', ')}`)
 
     } catch (error) {
         console.error('❌ Error updating user:', error)

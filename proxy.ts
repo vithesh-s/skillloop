@@ -15,7 +15,7 @@ import type { NextRequest } from 'next/server'
  */
 export default auth((req) => {
     const isLoggedIn = !!req.auth
-    const userRole = req.auth?.user?.role
+    const userRoles = req.auth?.user?.systemRoles || []
     const { pathname } = req.nextUrl
 
     // Public routes - allow access
@@ -25,6 +25,20 @@ export default auth((req) => {
         pathname === '/unauthorized'
     ) {
         return NextResponse.next()
+    }
+
+    // Redirect authenticated users from home page to role-specific dashboard
+    if (pathname === '/' && isLoggedIn) {
+        // Check roles in priority order
+        if (userRoles.includes('ADMIN')) {
+            return NextResponse.redirect(new URL('/admin', req.url))
+        } else if (userRoles.includes('TRAINER')) {
+            return NextResponse.redirect(new URL('/trainer', req.url))
+        } else if (userRoles.includes('MANAGER')) {
+            return NextResponse.redirect(new URL('/manager', req.url))
+        } else {
+            return NextResponse.redirect(new URL('/employee', req.url))
+        }
     }
 
     // Require authentication for all protected routes
@@ -37,14 +51,16 @@ export default auth((req) => {
     // Role-based access control
     const roleRoutes: Record<string, string[]> = {
         '/admin': ['ADMIN'],
-        '/training': ['TRAINER', 'ADMIN'],
+        '/trainer': ['TRAINER', 'ADMIN'],
         '/manager': ['MANAGER', 'ADMIN'],
+        '/employee': ['LEARNER', 'ADMIN', 'MANAGER', 'TRAINER', 'MENTOR'],
     }
 
     // Check if route requires specific role
     for (const [route, allowedRoles] of Object.entries(roleRoutes)) {
         if (pathname.startsWith(route)) {
-            if (!userRole || !allowedRoles.includes(userRole)) {
+            const hasRequiredRole = allowedRoles.some(role => userRoles.includes(role))
+            if (!hasRequiredRole) {
                 return NextResponse.redirect(new URL('/unauthorized', req.url))
             }
         }

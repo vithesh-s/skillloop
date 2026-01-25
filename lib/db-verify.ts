@@ -56,20 +56,7 @@ async function verifyDatabase() {
 
         // Sample user with relationships
         const sampleUser = await db.user.findFirst({
-            where: { role: 'EMPLOYEE' },
-            include: {
-                manager: true,
-                skillMatrix: {
-                    include: { skill: true },
-                    take: 3,
-                },
-                _count: {
-                    select: {
-                        assessmentAttempts: true,
-                        trainingAssignments: true,
-                    },
-                },
-            },
+            where: { systemRoles: { has: 'LEARNER' } },
         })
 
         if (sampleUser) {
@@ -78,12 +65,8 @@ async function verifyDatabase() {
             console.log(`   Name:          ${sampleUser.name}`)
             console.log(`   Employee No:   ${sampleUser.employeeNo}`)
             console.log(`   Email:         ${sampleUser.email}`)
-            console.log(`   Role:          ${sampleUser.role}`)
+            console.log(`   System Roles:  ${sampleUser.systemRoles.join(', ')}`)
             console.log(`   Department:    ${sampleUser.department}`)
-            console.log(`   Manager:       ${sampleUser.manager?.name || 'None'}`)
-            console.log(`   Assessments:   ${sampleUser._count.assessmentAttempts}`)
-            console.log(`   Trainings:     ${sampleUser._count.trainingAssignments}`)
-            console.log(`   Skill Matrix:  ${sampleUser.skillMatrix.length} skills tracked`)
             console.log('─────────────────────────────────\n')
         }
 
@@ -101,7 +84,7 @@ async function verifyDatabase() {
             console.log('📝 Sample Assessment:')
             console.log('─────────────────────────────────')
             console.log(`   Title:         ${sampleAssessment.title}`)
-            console.log(`   Skill:         ${sampleAssessment.skill.skillName}`)
+            console.log(`   Skill:         ${sampleAssessment.skill.name}`)
             console.log(`   Questions:     ${sampleAssessment._count.questions}`)
             console.log(`   Attempts:      ${sampleAssessment._count.attempts}`)
             console.log(`   Total Marks:   ${sampleAssessment.totalMarks}`)
@@ -111,17 +94,12 @@ async function verifyDatabase() {
             console.log('─────────────────────────────────\n')
         }
 
-        // Role distribution
-        const roleDistribution = await db.user.groupBy({
-            by: ['role'],
-            _count: true,
-        })
+        // User statistics
+        const totalUsers = await db.user.count()
 
-        console.log('👥 User Role Distribution:')
+        console.log('👥 User Statistics:')
         console.log('─────────────────────────────────')
-        roleDistribution.forEach((role) => {
-            console.log(`   ${role.role.padEnd(10)}: ${role._count}`)
-        })
+        console.log(`   Total Users: ${totalUsers}`)
         console.log('─────────────────────────────────\n')
 
         console.log('✅ Database verification completed successfully!')
