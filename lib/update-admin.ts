@@ -8,7 +8,7 @@ import { db } from './db'
 
 async function updateUserToAdmin() {
     try {
-        const email = 'vitheshs@acemicromatic.com'
+        const email = 'reshalk@acemicromatic.com'
 
         // Check if user exists
         const user = await db.user.findUnique({

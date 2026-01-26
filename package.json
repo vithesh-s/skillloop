@@ -11,6 +11,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:skills": "tsx prisma/seed-skill-matrix.ts",
+    "db:seed:vithesh": "tsx prisma/seed-vithesh-example.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

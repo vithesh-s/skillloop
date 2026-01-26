@@ -13,6 +13,7 @@ import {
   RiFileChartLine,
   RiFolderLine,
   RiEditLine,
+  RiBarChartBoxLine,
 } from "@remixicon/react";
 
 interface SidebarProps {
@@ -48,6 +49,11 @@ const adminNavItems = [
     title: "Assessments",
     href: "/admin/assessments",
     icon: RiFileChartLine,
+  },
+  {
+    title: "TNA Reports",
+    href: "/admin/tna",
+    icon: RiBarChartBoxLine,
   },
   {
     title: "System Config",
@@ -95,6 +101,11 @@ const managerNavItems = [
     href: "/manager/reports",
     icon: RiFileChartLine,
   },
+  {
+    title: "TNA Reports",
+    href: "/admin/tna",
+    icon: RiBarChartBoxLine,
+  },
 ];
 
 const employeeNavItems = [
@@ -107,6 +118,11 @@ const employeeNavItems = [
     title: "My Skills",
     href: "/employee/skills",
     icon: RiBookLine,
+  },
+  {
+    title: "Skill Gaps",
+    href: "/employee/skill-gaps",
+    icon: RiBarChartBoxLine,
   },
   {
     title: "Learning Path",

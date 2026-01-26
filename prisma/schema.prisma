@@ -232,9 +232,33 @@ model Skill {
   skillMatrix       SkillMatrix[]
   trainings         Training[]
   roleCompetencies  RoleCompetency[]
+  resources         SkillResource[]
   
   @@index([categoryId])
   @@index([name])
+}
+
+// 2.5 SkillResource - Learning resources for each skill level
+model SkillResource {
+  id              String   @id @default(cuid())
+  skillId         String
+  level           String   // BEGINNER, INTERMEDIATE, ADVANCED, EXPERT
+  title           String
+  description     String?
+  url             String
+  resourceType    String   // UDEMY, COURSE, ARTICLE, VIDEO, BOOK, DOCUMENTATION, etc.
+  estimatedHours  Int?     // hours to complete
+  provider        String?  // Udemy, LinkedIn Learning, YouTube, etc.
+  rating          Float?   // 0-5 stars
+  isApproved      Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([skillId])
+  @@index([level])
+  @@index([resourceType])
 }
 
 // 3. Assessment - Pre/Post assessments for skills

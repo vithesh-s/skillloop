@@ -160,6 +160,15 @@ export type TrainingRecommendation = {
   availableSeats?: number           // For offline trainings
   nextAvailableDate?: Date          // Next scheduled session
   mentorAvailable: boolean          // Whether mentor/trainer is assigned
+  resources?: Array<{               // Related learning resources
+    resourceId: string
+    title: string
+    url: string
+    resourceType: string
+    estimatedHours?: number
+    provider?: string
+    rating?: number
+  }>
 }
 
 // ============================================================================

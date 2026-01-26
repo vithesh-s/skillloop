@@ -416,7 +416,7 @@ export function AssessmentTakingInterface({
                   }))
                 }}
                 placeholder="Type your answer here..."
-                className="min-h-[200px]"
+                className="min-h-50"
               />
             )}
           </div>

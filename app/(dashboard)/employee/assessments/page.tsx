@@ -12,7 +12,14 @@ export default async function EmployeeAssessmentsPage() {
 
   // Fetch published assessments
   const assessments = await prisma.assessment.findMany({
-    where: { status: "PUBLISHED" },
+    where: { 
+      status: "PUBLISHED",
+      assignments: {
+        some: {
+          userId: session.user.id
+        }
+      }
+    },
     include: {
       skill: true,
       _count: {

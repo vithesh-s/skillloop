@@ -173,9 +173,7 @@ export const gradingSchema = z.object({
 export const skillMatrixSchema = z.object({
     userId: z.string().min(1, 'User is required'),
     skillId: z.string().min(1, 'Skill is required'),
-    desiredLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'], {
-        errorMap: () => ({ message: 'Valid competency level required' })
-    }),
+    desiredLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
 }).refine(
     (data) => {
         // Ensure userId and skillId are valid CUIDs
@@ -229,9 +227,7 @@ export const tnaFilterSchema = z.object({
 )
 
 export const exportOptionsSchema = z.object({
-    format: z.enum(['CSV', 'PDF', 'XLSX'], {
-        errorMap: () => ({ message: 'Invalid export format' })
-    }),
+    format: z.enum(['CSV', 'PDF', 'XLSX']),
     includeCharts: z.boolean().default(false),
     includeRecommendations: z.boolean().default(true),
     includeHistory: z.boolean().default(false),

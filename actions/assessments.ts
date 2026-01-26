@@ -50,11 +50,24 @@ export async function createAssessment(
     }
   }
 
+  // Verify user exists in database
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id! },
+    select: { id: true },
+  })
+
+  if (!user) {
+    return {
+      message: "User account not found. Please sign in again.",
+      success: false,
+    }
+  }
+
   try {
     const assessment = await prisma.assessment.create({
       data: {
         ...validatedFields.data,
-        createdById: session.user.id!,
+        createdById: user.id,
         status: "DRAFT",
       },
     })
@@ -1283,10 +1296,20 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
           status: "completed",
         },
       })
+
+      // Recalculate skill gaps after assessment completion
+      try {
+        const { updateSkillMatrixGaps } = await import('./skill-matrix')
+        await updateSkillMatrixGaps(attempt.userId)
+      } catch (gapError) {
+        console.error('Failed to update skill matrix gaps:', gapError)
+        // Continue - gap update failure shouldn't fail grading
+      }
     }
 
     revalidatePath("/trainer/grading")
     revalidatePath("/employee/assessments")
+    revalidatePath("/employee/skill-gaps")
 
     return {
       message: "Grading completed successfully",
@@ -1299,6 +1322,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       success: false,
     }
   }
+}
 
   // ============================================================================
   // ASSESSMENT ASSIGNMENT
@@ -1316,6 +1340,15 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
     }
 
     try {
+      // Verify assigner exists in DB to prevent FK violation
+      const assigner = await prisma.user.findUnique({
+        where: { id: session.user.id }
+      })
+
+      if (!assigner) {
+        return { message: "Assigning user not found in database", success: false }
+      }
+
       const assessment = await prisma.assessment.findUnique({
         where: { id: assessmentId },
       })
@@ -1333,13 +1366,13 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
             }
           },
           update: {
-            assignedById: session.user.id!,
+            assignedById: assigner.id,
             dueDate: dueDate || undefined,
           },
           create: {
             assessmentId,
             userId,
-            assignedById: session.user.id!,
+            assignedById: assigner.id,
             dueDate,
             status: "PENDING"
           }
