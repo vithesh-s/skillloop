@@ -236,7 +236,11 @@ export function CreateAssessmentForm({ skills, initialAssessment }: CreateAssess
                 />
               </TabsContent>
               <TabsContent value="bulk">
-                <BulkUploadQuestions assessmentId={assessmentId} />
+                <BulkUploadQuestions 
+                  assessmentId={assessmentId} 
+                  skillId={initialAssessment?.skillId || (state.success && state.data?.skillId) || ''}
+                  onSuccess={handleUpdate}
+                />
               </TabsContent>
               <TabsContent value="bank">
                  <QuestionBankSelector 

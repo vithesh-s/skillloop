@@ -14,11 +14,13 @@ import {
   gapAnalysisFiltersSchema,
   tnaFilterSchema,
   batchSkillMatrixUpdateSchema,
+  addUserSkillSchema,
   type SkillMatrixInput,
   type UpdateDesiredLevelInput,
   type GapAnalysisFiltersInput,
   type TNAFiltersInput,
-  type BatchSkillMatrixUpdateInput
+  type BatchSkillMatrixUpdateInput,
+  type AddUserSkillInput
 } from "@/lib/validation"
 import {
   type SkillGapData,
@@ -403,6 +405,127 @@ export async function createSkillMatrixEntry(
     }
     console.error('Failed to create skill matrix entry:', error)
     throw new Error("Failed to add skill to matrix")
+  }
+}
+
+export async function addUserSkill(
+  data: AddUserSkillInput
+): Promise<{ success: boolean; message: string; skillMatrixId?: string }> {
+  const session = await auth()
+  if (!session?.user) {
+    return { success: false, message: "Unauthorized" }
+  }
+
+  try {
+    const validated = addUserSkillSchema.parse(data)
+    const userId = session.user.id
+
+    // Convert numeric levels to CompetencyLevel enum
+    const levelMapping: Record<number, CompetencyLevel> = {
+      1: 'BEGINNER',
+      2: 'BEGINNER',
+      3: 'INTERMEDIATE',
+      4: 'ADVANCED',
+      5: 'EXPERT',
+    }
+
+    const currentLevel = levelMapping[validated.currentLevel]
+    const desiredLevel = levelMapping[validated.desiredLevel]
+
+    let skillId = validated.skillId
+
+    // If custom skill name provided, create or find the skill
+    if (validated.customSkillName && !skillId) {
+      // Check if skill already exists
+      let skill = await prisma.skill.findFirst({
+        where: {
+          name: {
+            equals: validated.customSkillName,
+            mode: 'insensitive'
+          }
+        }
+      })
+
+      // If skill doesn't exist, create it in "Other" category
+      if (!skill) {
+        // Find or create "Other" category
+        let otherCategory = await prisma.skillCategory.findFirst({
+          where: { name: 'Other' }
+        })
+
+        if (!otherCategory) {
+          otherCategory = await prisma.skillCategory.create({
+            data: {
+              name: 'Other',
+              description: 'Miscellaneous skills',
+              colorClass: 'slate-500'
+            }
+          })
+        }
+
+        skill = await prisma.skill.create({
+          data: {
+            name: validated.customSkillName,
+            categoryId: otherCategory.id,
+            description: validated.notes || `Custom skill added by ${session.user.name}`,
+            proficiencyLevels: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
+          }
+        })
+      }
+
+      skillId = skill.id
+    }
+
+    if (!skillId) {
+      return { success: false, message: "Skill ID is required" }
+    }
+
+    // Check if skill matrix entry already exists
+    const existing = await prisma.skillMatrix.findUnique({
+      where: {
+        userId_skillId: {
+          userId,
+          skillId,
+        }
+      }
+    })
+
+    if (existing) {
+      return { success: false, message: "This skill is already in your skill matrix" }
+    }
+
+    // Calculate gap percentage
+    const gapPercentage = calculateGapPercentageInternal(desiredLevel, currentLevel)
+    const status = gapPercentage === 0 ? 'completed' : 'gap_identified'
+
+    // Create skill matrix entry
+    const entry = await prisma.skillMatrix.create({
+      data: {
+        userId,
+        skillId,
+        currentLevel,
+        desiredLevel,
+        gapPercentage,
+        status,
+        lastAssessedDate: new Date(),
+      }
+    })
+
+    revalidatePath(`/employee`)
+    revalidatePath(`/employee/skill-gaps`)
+    revalidatePath(`/admin/tna`)
+
+    return {
+      success: true,
+      message: `Skill added successfully! ${gapPercentage > 0 ? `Gap identified: ${gapPercentage}%` : 'No gap - you\'re at your desired level!'}`,
+      skillMatrixId: entry.id
+    }
+  } catch (error) {
+    console.error('Error adding user skill:', error)
+    if (error instanceof Error) {
+      return { success: false, message: error.message }
+    }
+    return { success: false, message: "Failed to add skill" }
   }
 }
 

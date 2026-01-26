@@ -39,6 +39,7 @@ export function QuestionForm({ assessmentId, skills, defaultSkillId, onSuccess }
   const [questionType, setQuestionType] = useState<string>("MCQ")
   const [options, setOptions] = useState<string[]>(["", ""])
   const [correctAnswerIndex, setCorrectAnswerIndex] = useState<number>(0)
+  const [marks, setMarks] = useState<string>("5") // Default for MCQ
 
   const [state, formAction, pending] = useActionState(
     addQuestion.bind(null, assessmentId),
@@ -51,9 +52,30 @@ export function QuestionForm({ assessmentId, skills, defaultSkillId, onSuccess }
       setQuestionType("MCQ")
       setOptions(["", ""])
       setCorrectAnswerIndex(0)
+      setMarks("1") // Reset to MCQ default
       if (onSuccess) onSuccess()
     }
   }, [state.success])
+
+  // Update marks when question type changes
+  useEffect(() => {
+    switch (questionType) {
+      case "MCQ":
+        setMarks("1")
+        break
+      case "FILL_BLANK":
+        setMarks("1")
+        break
+      case "TRUE_FALSE":
+        setMarks("1")
+        break
+      case "DESCRIPTIVE":
+        setMarks("20")
+        break
+      default:
+        setMarks("1")
+    }
+  }, [questionType])
 
   const addOption = () => {
     setOptions([...options, ""])
@@ -243,6 +265,8 @@ export function QuestionForm({ assessmentId, skills, defaultSkillId, onSuccess }
             name="marks"
             type="number"
             min="1"
+            value={marks}
+            onChange={(e) => setMarks(e.target.value)}
             placeholder="10"
             required
           />

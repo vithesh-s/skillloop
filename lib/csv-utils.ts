@@ -125,12 +125,12 @@ function parseCSVLine(line: string): string[] {
  * Parse and validate a single CSV row into a question object
  */
 function parseQuestionRow(row: string[]): QuestionFormData | null {
-    if (row.length < 7) {
-        console.warn('Skipping invalid row: insufficient columns (expected: skillId, questionText, questionType, options, correctAnswer, marks, difficultyLevel)')
+    if (row.length < 6) {
+        console.warn('Skipping invalid row: insufficient columns (expected: questionText, questionType, options, correctAnswer, marks, difficultyLevel)')
         return null
     }
 
-    const [skillId, questionText, questionType, optionsStr, correctAnswer, marksStr, difficultyLevel] = row
+    const [questionText, questionType, optionsStr, correctAnswer, marksStr, difficultyLevel] = row
 
     // Parse options - handle JSON array or pipe-separated values
     let options: string[] | undefined
@@ -154,7 +154,6 @@ function parseQuestionRow(row: string[]): QuestionFormData | null {
     }
 
     const questionData: QuestionFormData = {
-        skillId: skillId.trim(),
         questionText: questionText.trim(),
         questionType: questionType.trim() as 'MCQ' | 'DESCRIPTIVE' | 'TRUE_FALSE' | 'FILL_BLANK',
         options: options && options.length > 0 ? options : undefined,

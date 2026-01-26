@@ -2,7 +2,23 @@ I have created the following plan after thorough exploration and analysis of the
 
 ## Observations
 
-The codebase follows a well-structured Next.js 16 architecture with Prisma ORM, NextAuth v5 for authentication, and shadcn/ui components. The database schema already includes `Training`, `OnlineTraining`, `OfflineTraining`, and `TrainingAssignment` models. The TNA (Training Need Analysis) system is fully implemented with skill gap analysis and training recommendations. The existing patterns use server actions with Zod validation, `useActionState` hook for form handling, and dialog-based UI components. UploadThing is available for file uploads, and the system supports role-based access control (ADMIN, TRAINER, EMPLOYEE, MANAGER).
+The codebase follows a well-structured Next.js 16 architecture with Prisma ORM, NextAuth v5 for authentication, and shadcn/ui components. The database schema already includes `Training`, `OnlineTraining`, `OfflineTraining`, and `TrainingAssignment` models. The TNA (Training Need Analysis) system is fully implemented with skill gap analysis and training recommendations. The existing patterns use server actions with Zod validation, `useActionState` hook for form handling, and dialog-based UI components. UploadThing is available for file uploads, and the system supports role-based access control (ADMIN, TRAINER, MANAGER, LEARNER).
+
+## Current State Conflicts & Gaps to Resolve First
+
+- Roles: Prisma `Role` enum uses `LEARNER` (not `EMPLOYEE`). All new guards, pages, and validation must rely on `LEARNER` where the plan referenced `EMPLOYEE`.
+- Validation layer: `lib/validation.ts` has no training schemas yet and exports many existing types. Adding training schemas must avoid breaking current exports and keep helper utilities intact.
+- Training data model: `Training.resources`, `OnlineTraining.resourceLinks`, `OfflineTraining.schedule/materials/trainerIds` are stored as JSON. Schemas should coerce to JSON structures (not raw strings) to match Prisma types.
+- Training status enum: Prisma `TrainingStatus` is `ASSIGNED | IN_PROGRESS | COMPLETED | CANCELLED`; status flows in actions must map to these values. SkillMatrix `status` is a free-form string; updates should continue using current values like `training_assigned` without introducing new enums.
+- Existing UI: There are no training pages or components under `components/dashboard/training/` and the manager dashboard (`app/(dashboard)/manager/page.tsx`) is a placeholder. New routes must be added fresh rather than refactoring existing training UIs.
+- TNA table: `components/dashboard/tna/EmployeeTNATable.tsx` currently offers only search/sort/export buttons with no assignment actions; new dialogs and bulk selection will be net-new work.
+- Shadcn setup: `components.json` uses the `radix-vega` theme, Remix Icon set, and existing aliases. New components must respect this config and reuse already-present primitives (tables, dialogs, etc.) to avoid duplication.
+- Notifications: `Notification.type` already includes `TRAINING_ASSIGNED`; any notification writes must conform to this shape and existing email utilities.
+
+## Tooling Notes (latest, verified)
+
+- From shadcn CLI: `npx shadcn@latest add @shadcn/form @shadcn/data-table` (source: shadcn/ui latest CLI docs). Use these if we need to pull fresh form or data-table scaffolds; keep the `radix-vega` style and Remix icons per `components.json`.
+- Latest shadcn guidance confirms the new CLI updates Tailwind in-place and supports Next.js 14+.
 
 ## Approach
 
@@ -24,10 +40,25 @@ export const trainingSchema = z.object({
   mode: z.enum(['ONLINE', 'OFFLINE']),
   duration: z.coerce.number().min(1, 'Duration must be at least 1 hour'),
   skillId: z.string().min(1, 'Skill is required'),
-  resources: z.string().optional(), // JSON string
+  resources: z.array(z.object({ title: z.string().optional(), url: z.string().url().optional(), type: z.string().optional() })).optional(), // stored as JSON
   venue: z.string().optional(),
   meetingLink: z.string().url().optional().or(z.literal('')),
   maxParticipants: z.coerce.number().min(1).optional(),
+  // Additional fields for learner completion tracking
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  typeOfTraining: z.string().optional(), // e.g., "Technical", "Soft Skills", "Compliance"
+  methodOfTraining: z.enum(['ONLINE', 'OFFLINE', 'HYBRID', 'SELF_PACED', 'INSTRUCTOR_LED']).optional(),
+  trainingInstitute: z.string().optional(),
+  trainerDetails: z.string().optional(), // Trainer name, qualifications, contact
+  location: z.string().optional(), // Physical location or platform details
+  certificateDetails: z.object({
+    certificateNumber: z.string().optional(),
+    issuingAuthority: z.string().optional(),
+    certificateUrl: z.string().url().optional(),
+    expiryDate: z.string().optional(),
+  }).optional(),
+  remarks: z.string().optional(),
 })
 
 export const onlineTrainingSchema = z.object({
@@ -93,6 +124,29 @@ export const tnaBasedAssignmentSchema = z.object({
   (data) => data.createNewTraining ? !!data.trainingData : !!data.existingTrainingId,
   { message: 'Either select existing training or provide new training data' }
 )
+
+// Schema for learners to update training completion details
+export const trainingCompletionSchema = z.object({
+  assignmentId: z.string(),
+  actualDateFrom: z.string().min(1, 'Start date is required'),
+  actualDateTo: z.string().min(1, 'End date is required'),
+  actualDuration: z.coerce.number().min(1, 'Duration must be at least 1 hour'),
+  typeOfTraining: z.string().min(1, 'Training type is required'),
+  methodOfTraining: z.enum(['ONLINE', 'OFFLINE', 'HYBRID', 'SELF_PACED', 'INSTRUCTOR_LED']),
+  trainingInstitute: z.string().optional(),
+  trainerDetails: z.string().optional(),
+  location: z.string().optional(),
+  certificateDetails: z.object({
+    certificateNumber: z.string().optional(),
+    issuingAuthority: z.string().optional(),
+    certificateUrl: z.string().url().optional(),
+    expiryDate: z.string().optional(),
+  }).optional(),
+  remarks: z.string().optional(),
+}).refine(
+  (data) => new Date(data.actualDateTo) >= new Date(data.actualDateFrom),
+  { message: 'End date must be on or after start date' }
+)
 ```
 
 Export TypeScript types:
@@ -103,6 +157,7 @@ export type OfflineTrainingInput = z.infer<typeof offlineTrainingSchema>
 export type TrainingAssignmentInput = z.infer<typeof trainingAssignmentSchema>
 export type BulkTrainingAssignmentInput = z.infer<typeof bulkTrainingAssignmentSchema>
 export type TNABasedAssignmentInput = z.infer<typeof tnaBasedAssignmentSchema>
+export type TrainingCompletionInput = z.infer<typeof trainingCompletionSchema>
 ```
 
 ### 2. Create Training Server Actions
@@ -129,6 +184,12 @@ Implement comprehensive server actions following the existing pattern from `file
 - `getAssignedUsers(trainingId: string)` - List users assigned to training
 - `getUserTrainings(userId: string)` - List trainings for specific user
 
+**Learner Completion Operations**:
+- `updateTrainingCompletion(data: TrainingCompletionInput)` - Learner updates completion details with actual training info
+- `markTrainingCompleted(assignmentId: string)` - Mark training as completed and update skill matrix
+- `uploadTrainingCertificate(assignmentId: string, certificateFile: File)` - Upload completion certificate
+- `getTrainingCompletionForm(assignmentId: string)` - Get pre-filled form data for learner completion
+
 **Helper Functions**:
 - `getAvailableTrainers()` - Fetch users with TRAINER role
 - `getAvailableMentors(skillId: string)` - Fetch mentors for specific skill
@@ -137,10 +198,10 @@ Implement comprehensive server actions following the existing pattern from `file
 
 Each action should:
 1. Check authentication with `await auth()`
-2. Validate role permissions (ADMIN, MANAGER, TRAINER)
+2. Validate role permissions (ADMIN, MANAGER, TRAINER for admin ops; LEARNER for completion ops)
 3. Parse and validate input with Zod schemas
 4. Perform Prisma operations with proper error handling
-5. Revalidate relevant paths (`/admin/training`, `/manager/assign-training`, `/employee/my-trainings`)
+5. Revalidate relevant paths (`/admin/training`, `/manager/assign-training`, `/learner/my-trainings`)
 6. Return typed responses or throw descriptive errors
 
 ### 3. Create Training Topic Builder Page
@@ -441,7 +502,74 @@ await sendEmail({
 })
 ```
 
-### 12. Create Training Assignment Status Updates
+### 12. Create Learner Training Completion Interface
+
+**File**: `file:app/(dashboard)/learner/my-trainings/page.tsx`
+
+Server component for learners to view and complete assigned trainings:
+
+```typescript
+export default async function MyTrainingsPage() {
+  const session = await auth()
+  if (!session?.user) redirect('/login')
+  
+  const assignments = await prisma.trainingAssignment.findMany({
+    where: { userId: session.user.id },
+    include: {
+      training: {
+        include: { skill: { include: { category: true } } }
+      }
+    },
+    orderBy: { startDate: 'desc' }
+  })
+  
+  return <MyTrainingsList assignments={assignments} />
+}
+```
+
+**Component**: `file:components/dashboard/training/MyTrainingsList.tsx`
+
+Client component with training completion workflow:
+
+**Features**:
+- Display assigned trainings with status badges (ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED)
+- Filter by status and skill category
+- For each training show: Topic name, skill, assigned date, target completion, status
+- Action buttons based on status:
+  - ASSIGNED: "Start Training", "View Details"
+  - IN_PROGRESS: "Update Progress", "Mark Complete", "View Details"
+  - COMPLETED: "View Certificate", "View Details"
+- Click "Mark Complete" opens `<TrainingCompletionDialog />`
+
+**Component**: `file:components/dashboard/training/TrainingCompletionDialog.tsx`
+
+Dialog for learners to fill completion details:
+
+**Props**: `{ assignmentId: string, training: TrainingWithSkill }`
+
+**Form Fields** (matching your table structure):
+- Training dates: From date, To date (date pickers)
+- Duration in hours (number input, pre-filled from training.duration)
+- Type of training (text input - "Technical", "Soft Skills", "Compliance", etc.)
+- Method of training (dropdown - ONLINE, OFFLINE, HYBRID, SELF_PACED, INSTRUCTOR_LED)
+- Training Institute (text input, optional)
+- Trainer details (textarea - name, qualifications, contact, optional)
+- Location (text input - physical venue or platform details, optional)
+- Certificate details (expandable section):
+  - Certificate number (text input)
+  - Issuing authority (text input) 
+  - Certificate file upload (UploadThing integration)
+  - Expiry date (date picker, optional)
+- Remarks (textarea, optional)
+
+**UI Features**:
+- Form validation using `trainingCompletionSchema`
+- File upload for certificate with preview
+- Auto-save draft functionality
+- Submit with `updateTrainingCompletion` action
+- Success confirmation with updated skill matrix status
+
+### 13. Create Training Assignment Status Updates
 
 **File**: `file:actions/trainings.ts`
 
@@ -509,8 +637,8 @@ sequenceDiagram
 
 | Component | File Path | Purpose |
 |-----------|-----------|---------|
-| Validation Schemas | `lib/validation.ts` | Zod schemas for training data validation |
-| Server Actions | `actions/trainings.ts` | CRUD operations and assignment logic |
+| Validation Schemas | `lib/validation.ts` | Zod schemas for training data validation including completion tracking |
+| Server Actions | `actions/trainings.ts` | CRUD operations, assignment logic, and learner completion operations |
 | Training Builder | `app/(dashboard)/admin/training/create/page.tsx` | Create new training topics |
 | Online Form | `components/training/OnlineTrainingForm.tsx` | Configure online training resources |
 | Offline Form | `components/training/OfflineTrainingForm.tsx` | Configure offline training schedule |
@@ -519,3 +647,5 @@ sequenceDiagram
 | Bulk Assignment | `app/(dashboard)/admin/bulk-assign/page.tsx` | Organization-wide bulk assignments |
 | Training List | `app/(dashboard)/admin/training/page.tsx` | Training catalog management |
 | Training Details | `app/(dashboard)/admin/training/[id]/page.tsx` | View training details and assignments |
+| Learner Dashboard | `app/(dashboard)/learner/my-trainings/page.tsx` | Learner view of assigned trainings |
+| Completion Form | `components/dashboard/training/TrainingCompletionDialog.tsx` | Learner training completion form with all tracking fields |

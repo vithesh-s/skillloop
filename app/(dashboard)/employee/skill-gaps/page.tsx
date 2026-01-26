@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { analyzeUserSkillGaps, getTrainingRecommendations } from '@/actions/skill-matrix'
+import { prisma } from '@/lib/prisma'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,7 @@ import { GapDistributionChart } from '@/components/dashboard/skill-gaps/GapDistr
 import { CompetencyRadarChart } from '@/components/dashboard/skill-gaps/CompetencyRadarChart'
 import { TrainingRecommendationsList } from '@/components/dashboard/skill-gaps/TrainingRecommendationsList'
 import { SkillGapFilters } from '@/components/dashboard/skill-gaps/SkillGapFilters'
+import { AddSkillDialog } from '@/components/dashboard/skills/AddSkillDialog'
 
 import { GapAnalysisFiltersInput } from '@/lib/validation'
 
@@ -72,9 +74,15 @@ export default async function SkillGapsPage(props: {
 
 async function SkillGapsContent({ userId, filters }: { userId: string, filters?: GapAnalysisFiltersInput }) {
   // Fetch data in parallel
-  const [analysis, recommendations] = await Promise.all([
+  const [analysis, recommendations, skills] = await Promise.all([
     analyzeUserSkillGaps(userId, filters),
     getTrainingRecommendations(userId),
+    prisma.skill.findMany({
+      include: {
+        category: true,
+      },
+      orderBy: { name: 'asc' }
+    })
   ])
 
   const { 
@@ -99,7 +107,7 @@ async function SkillGapsContent({ userId, filters }: { userId: string, filters?:
           <p className="text-muted-foreground mb-6">
             Start by adding skills to your skill matrix to track your development progress.
           </p>
-          <Button>Add Skills</Button>
+          <AddSkillDialog skills={skills} />
         </CardContent>
       </Card>
     )

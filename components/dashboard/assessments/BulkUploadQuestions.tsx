@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { bulkUploadQuestions } from "@/actions/assessments"
 import { useRouter } from "next/navigation"
 import { parseQuestionCSV, generateQuestionTemplate, validateQuestionRow } from "@/lib/csv-utils"
@@ -16,18 +16,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { RiDownloadLine, RiUploadLine } from "@remixicon/react"
+import { RiDownloadLine, RiUploadLine, RiCloseLine, RiFileTextLine } from "@remixicon/react"
 
 interface BulkUploadQuestionsProps {
   assessmentId: string
+  skillId: string
+  onSuccess?: () => void
 }
 
-export function BulkUploadQuestions({ assessmentId }: BulkUploadQuestionsProps) {
+export function BulkUploadQuestions({ assessmentId, skillId, onSuccess }: BulkUploadQuestionsProps) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<any[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const [success, setSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const downloadTemplate = () => {
     const template = generateQuestionTemplate()
@@ -44,30 +48,55 @@ export function BulkUploadQuestions({ assessmentId }: BulkUploadQuestionsProps) 
     const selectedFile = e.target.files?.[0]
     if (!selectedFile) return
 
+    console.log('[BulkUpload] File selected:', selectedFile.name)
     setFile(selectedFile)
     setErrors([])
     setPreview([])
     setSuccess(false)
+    setParsing(true)
 
     try {
+      console.log('[BulkUpload] Parsing CSV...')
       const questions = await parseQuestionCSV(selectedFile)
+      console.log('[BulkUpload] Parsed questions:', questions.length)
+      
+      // Add skillId to each question
+      const questionsWithSkill = questions.map(q => ({ ...q, skillId }))
+      console.log('[BulkUpload] Added skillId to questions:', skillId)
       
       // Validate each question
       const validationErrors: string[] = []
-      questions.forEach((q, index) => {
+      questionsWithSkill.forEach((q, index) => {
         const result = validateQuestionRow(q)
         if (!result.success) {
+          console.log(`[BulkUpload] Validation error on row ${index + 2}:`, result.error)
           validationErrors.push(`Row ${index + 2}: ${result.error}`)
         }
       })
 
       if (validationErrors.length > 0) {
+        console.log('[BulkUpload] Validation errors:', validationErrors.length)
         setErrors(validationErrors)
       } else {
-        setPreview(questions)
+        console.log('[BulkUpload] All questions valid, setting preview')
+        setPreview(questionsWithSkill)
       }
     } catch (error) {
+      console.error('[BulkUpload] Parse error:', error)
       setErrors([error instanceof Error ? error.message : "Failed to parse CSV"])
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  const clearFile = () => {
+    setFile(null)
+    setParsing(false)
+    setPreview([])
+    setErrors([])
+    setSuccess(false)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
     }
   }
 
@@ -86,9 +115,16 @@ export function BulkUploadQuestions({ assessmentId }: BulkUploadQuestionsProps) 
         setSuccess(true)
         setFile(null)
         setPreview([])
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
+        
+        // Call parent callback to refresh questions list
+        onSuccess?.()
+        router.refresh()
+        
         setTimeout(() => {
           setSuccess(false)
-          router.refresh()
         }, 2000)
       } else {
         setErrors([result.message || "Failed to upload questions"])
@@ -116,15 +152,62 @@ export function BulkUploadQuestions({ assessmentId }: BulkUploadQuestionsProps) 
           </Button>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="csvFile">Select CSV File</Label>
-          <Input
-            id="csvFile"
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-          />
+        <div className="space-y-3">
+          <Label>Select CSV File</Label>
+          {!file ? (
+            <div className="relative">
+              <input
+                ref={fileInputRef}
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <label
+                htmlFor="csvFile"
+                className="flex items-center justify-center w-full px-4 py-8 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors"
+              >
+                <div className="text-center">
+                  <RiUploadLine className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium text-foreground">
+                    Click to upload CSV file
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    or drag and drop your file here
+                  </p>
+                </div>
+              </label>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-4 border rounded-lg bg-muted/50">
+              <RiFileTextLine className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(file.size / 1024).toFixed(2)} KB
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearFile}
+                className="shrink-0"
+              >
+                <RiCloseLine className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
+
+        {parsing && (
+          <Alert>
+            <AlertDescription>
+              Parsing CSV file and validating questions...
+            </AlertDescription>
+          </Alert>
+        )}
 
         {errors.length > 0 && (
           <Alert variant="destructive">

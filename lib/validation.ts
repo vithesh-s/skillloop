@@ -242,6 +242,20 @@ export const batchSkillMatrixUpdateSchema = z.object({
     })).min(1, 'At least one update required').max(50, 'Maximum 50 updates per batch'),
 })
 
+export const addUserSkillSchema = z.object({
+    skillId: z.string().optional(),
+    customSkillName: z.string().optional(),
+    currentLevel: z.number().int().min(1).max(5),
+    desiredLevel: z.number().int().min(1).max(5),
+    notes: z.string().max(500).optional(),
+}).refine(
+    (data) => data.skillId || data.customSkillName,
+    { message: 'Either skillId or customSkillName must be provided' }
+).refine(
+    (data) => data.desiredLevel >= data.currentLevel,
+    { message: 'Desired level must be at least the current level' }
+)
+
 // ============================================================================
 // TYPE INFERENCE - Export TypeScript types from schemas
 // ============================================================================
@@ -261,6 +275,136 @@ export type GapAnalysisFiltersInput = z.infer<typeof gapAnalysisFiltersSchema>
 export type TNAFiltersInput = z.infer<typeof tnaFilterSchema>
 export type ExportOptionsInput = z.infer<typeof exportOptionsSchema>
 export type BatchSkillMatrixUpdateInput = z.infer<typeof batchSkillMatrixUpdateSchema>
+export type AddUserSkillInput = z.infer<typeof addUserSkillSchema>
+
+
+// ============================================================================
+// TRAINING MANAGEMENT SCHEMAS
+// ============================================================================
+
+export const trainingSchema = z.object({
+    topicName: z.string().min(3, 'Topic name must be at least 3 characters'),
+    description: z.string().optional(),
+    mode: z.enum(['ONLINE', 'OFFLINE']),
+    duration: z.coerce.number().min(1, 'Duration must be at least 1 hour'),
+    skillId: z.string().min(1, 'Skill is required'),
+    resources: z.array(z.object({ title: z.string().optional(), url: z.string().url().optional(), type: z.string().optional() })).optional(), // stored as JSON
+    venue: z.string().optional(),
+    meetingLink: z.string().url().optional().or(z.literal('')),
+    maxParticipants: z.coerce.number().min(1).optional(),
+    // Additional fields for learner completion tracking
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
+    typeOfTraining: z.string().optional(), // e.g., "Technical", "Soft Skills", "Compliance"
+    methodOfTraining: z.enum(['ONLINE', 'OFFLINE', 'HYBRID', 'SELF_PACED', 'INSTRUCTOR_LED']).optional(),
+    trainingInstitute: z.string().optional(),
+    trainerDetails: z.string().optional(), // Trainer name, qualifications, contact
+    location: z.string().optional(), // Physical location or platform details
+    certificateDetails: z.object({
+        certificateNumber: z.string().optional(),
+        issuingAuthority: z.string().optional(),
+        certificateUrl: z.string().url().optional(),
+        expiryDate: z.string().optional(),
+    }).optional(),
+    remarks: z.string().optional(),
+})
+
+export const onlineTrainingSchema = z.object({
+    trainingId: z.string(),
+    resourceLinks: z.array(z.object({
+        title: z.string(),
+        url: z.string().url(),
+        type: z.string(),
+    })).min(1, 'At least one resource is required'),
+    estimatedDuration: z.coerce.number().min(1),
+    mentorRequired: z.boolean(),
+})
+
+export const offlineTrainingSchema = z.object({
+    trainingId: z.string(),
+    schedule: z.array(z.object({
+        date: z.string(),
+        startTime: z.string(),
+        endTime: z.string(),
+        sessionTitle: z.string().optional(),
+    })).min(1, 'At least one session is required'),
+    venue: z.string().min(1, 'Venue is required'),
+    materials: z.array(z.object({
+        name: z.string(),
+        url: z.string(),
+        type: z.string(),
+    })).optional(),
+    trainerIds: z.array(z.string()).min(1, 'At least one trainer is required'),
+})
+
+export const trainingAssignmentSchema = z.object({
+    trainingId: z.string(),
+    userIds: z.array(z.string()).min(1, 'At least one user is required'),
+    trainerId: z.string().optional(),
+    mentorId: z.string().optional(),
+    startDate: z.coerce.date(),
+    targetCompletionDate: z.coerce.date(),
+}).refine(
+    (data) => data.targetCompletionDate > data.startDate,
+    { message: 'Target completion date must be after start date' }
+)
+
+export const bulkTrainingAssignmentSchema = z.object({
+    trainingId: z.string(),
+    assignments: z.array(z.object({
+        userId: z.string(),
+        trainerId: z.string().optional(),
+        mentorId: z.string().optional(),
+        startDate: z.string(),
+        targetCompletionDate: z.string(),
+    })).min(1, 'At least one assignment is required').max(100, 'Maximum 100 assignments per batch'),
+})
+
+export const tnaBasedAssignmentSchema = z.object({
+    skillId: z.string(),
+    userIds: z.array(z.string()).min(1),
+    createNewTraining: z.boolean(),
+    existingTrainingId: z.string().optional(),
+    trainingData: trainingSchema.optional(),
+    startDate: z.string(),
+    targetCompletionDate: z.string(),
+}).refine(
+    (data) => data.createNewTraining ? !!data.trainingData : !!data.existingTrainingId,
+    { message: 'Either select existing training or provide new training data' }
+)
+
+// Schema for learners to update training completion details
+export const trainingCompletionSchema = z.object({
+    assignmentId: z.string(),
+    actualDateFrom: z.string().min(1, 'Start date is required'),
+    actualDateTo: z.string().min(1, 'End date is required'),
+    actualDuration: z.coerce.number().min(1, 'Duration must be at least 1 hour'),
+    typeOfTraining: z.string().min(1, 'Training type is required'),
+    methodOfTraining: z.enum(['ONLINE', 'OFFLINE', 'HYBRID', 'SELF_PACED', 'INSTRUCTOR_LED']),
+    trainingInstitute: z.string().optional(),
+    trainerDetails: z.string().optional(),
+    location: z.string().optional(),
+    certificateDetails: z.object({
+        certificateNumber: z.string().optional(),
+        issuingAuthority: z.string().optional(),
+        certificateUrl: z.string().url().optional(),
+        expiryDate: z.string().optional(),
+    }).optional(),
+    remarks: z.string().optional(),
+
+}).refine(
+    (data) => new Date(data.actualDateTo) >= new Date(data.actualDateFrom),
+    { message: 'End date must be on or after start date' }
+)
+
+export type TrainingInput = z.infer<typeof trainingSchema>
+export type OnlineTrainingInput = z.infer<typeof onlineTrainingSchema>
+export type OfflineTrainingInput = z.infer<typeof offlineTrainingSchema>
+export type TrainingAssignmentInput = z.infer<typeof trainingAssignmentSchema>
+export type BulkTrainingAssignmentInput = z.infer<typeof bulkTrainingAssignmentSchema>
+export type TNABasedAssignmentInput = z.infer<typeof tnaBasedAssignmentSchema>
+export type TrainingCompletionInput = z.infer<typeof trainingCompletionSchema>
+
 
 // ============================================================================
 // VALIDATION UTILITIES

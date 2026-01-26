@@ -14,6 +14,7 @@ import {
   RiFolderLine,
   RiEditLine,
   RiBarChartBoxLine,
+  RiBookOpenLine,
 } from "@remixicon/react";
 
 interface SidebarProps {
@@ -51,6 +52,16 @@ const adminNavItems = [
     icon: RiFileChartLine,
   },
   {
+    title: "Training Management",
+    href: "/admin/training",
+    icon: RiGraduationCapLine,
+  },
+  {
+    title: "Assign Training",
+    href: "/manager/assign-training",
+    icon: RiBookOpenLine,
+  },
+  {
     title: "TNA Reports",
     href: "/admin/tna",
     icon: RiBarChartBoxLine,
@@ -69,14 +80,19 @@ const trainerNavItems = [
     icon: RiDashboardLine,
   },
   {
-    title: "Training Programs",
-    href: "/trainer/programs",
-    icon: RiGraduationCapLine,
-  },
-  {
     title: "Assessments",
     href: "/trainer/assessments",
     icon: RiFileChartLine,
+  },
+  {
+    title: "Training Management",
+    href: "/trainer/training",
+    icon: RiGraduationCapLine,
+  },
+  {
+    title: "Assign Training",
+    href: "/trainer/assign-training",
+    icon: RiBookOpenLine,
   },
   {
     title: "Grading",
@@ -95,6 +111,16 @@ const managerNavItems = [
     title: "Team Overview",
     href: "/manager/team",
     icon: RiUserLine,
+  },
+  {
+    title: "Training Catalog",
+    href: "/manager/create",
+    icon: RiBookOpenLine,
+  },
+  {
+    title: "Assign Training",
+    href: "/manager/assign-training",
+    icon: RiBookOpenLine,
   },
   {
     title: "Reports",
@@ -123,6 +149,11 @@ const employeeNavItems = [
     title: "Skill Gaps",
     href: "/employee/skill-gaps",
     icon: RiBarChartBoxLine,
+  },
+  {
+    title: "My Trainings",
+    href: "/employee/my-trainings",
+    icon: RiBookOpenLine,
   },
   {
     title: "Learning Path",

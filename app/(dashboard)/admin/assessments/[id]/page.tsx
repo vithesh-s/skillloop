@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 import { redirect, notFound } from "next/navigation"
-import { getAssessmentById } from "@/actions/assessments"
+import { getAssessmentById, getAssessmentSubmissionStatuses } from "@/actions/assessments"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { RiEditLine, RiArrowLeftLine, RiFileTextLine, RiTimeLine, RiBarChartBoxLine } from "@remixicon/react"
 import { QuestionsList } from "@/components/dashboard/assessments/QuestionsList"
 import { AssessmentAssignmentManager } from "@/components/dashboard/assessments/AssessmentAssignmentManager"
+import { AssignmentStatusGrid } from "@/components/dashboard/assessments/AssignmentStatusGrid"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default async function AssessmentDetailPage({
@@ -23,7 +24,10 @@ export default async function AssessmentDetailPage({
   }
 
   const { id } = await params
-  const assessment = await getAssessmentById(id)
+  const [assessment, submissionStatuses] = await Promise.all([
+    getAssessmentById(id),
+    getAssessmentSubmissionStatuses(id)
+  ])
 
   if (!assessment) {
     notFound()
@@ -146,9 +150,10 @@ export default async function AssessmentDetailPage({
       <Separator />
 
       <Tabs defaultValue="questions" className="w-full">
-        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+        <TabsList className="grid w-full max-w-150 grid-cols-3">
           <TabsTrigger value="questions">Questions</TabsTrigger>
           <TabsTrigger value="assignments">Assignments</TabsTrigger>
+          <TabsTrigger value="submissions">Submissions</TabsTrigger>
         </TabsList>
         
         <TabsContent value="questions" className="space-y-4 mt-6">
@@ -171,6 +176,16 @@ export default async function AssessmentDetailPage({
             </p>
           </div>
           <AssessmentAssignmentManager assessmentId={assessment.id} />
+        </TabsContent>
+
+        <TabsContent value="submissions" className="space-y-4 mt-6">
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold">Submissions & Grading</h2>
+            <p className="text-muted-foreground">
+              View submission status and grade assessments requiring manual review
+            </p>
+          </div>
+          <AssignmentStatusGrid data={submissionStatuses} />
         </TabsContent>
       </Tabs>
     </div>

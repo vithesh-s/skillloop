@@ -130,7 +130,7 @@ export function AssessmentAssignmentManager({ assessmentId }: AssessmentAssignme
               Assign Users
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-125">
             <DialogHeader>
               <DialogTitle>Assign Learners</DialogTitle>
               <DialogDescription>
@@ -154,7 +154,7 @@ export function AssessmentAssignmentManager({ assessmentId }: AssessmentAssignme
                 </Button>
               </div>
 
-              <div className="border rounded-md max-h-[300px] overflow-y-auto">
+              <div className="border rounded-md max-h-75 overflow-y-auto">
                 {searchResults.length === 0 ? (
                   <div className="p-4 text-center text-sm text-muted-foreground">
                     {loading ? "Searching..." : "No users found. Try a different search."}

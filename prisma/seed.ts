@@ -68,7 +68,55 @@ async function main() {
   console.log(`✅ Loaded ${employees.length} employees\n`);
 
   // ============================================================================
-  // STEP 3: Create users from employee data
+  // STEP 3: Create job roles from employee designations
+  // ============================================================================
+  console.log('📊 Creating job roles...');
+
+  // Helper function to determine job level based on designation
+  const determineJobLevel = (designation: string) => {
+    const lower = designation.toLowerCase();
+    if (lower.includes('trainee')) return 'ENTRY';
+    if (lower.includes('director') || lower.includes('managing')) return 'LEAD';
+    if (lower.includes('manager') || lower.includes('lead') || lower.includes('principal')) return 'LEAD';
+    if (lower.includes('senior') || lower.includes('sr.')) return 'SENIOR';
+    return 'MID';
+  };
+
+  // Extract unique designations with their departments from employee data
+  const uniqueDesignations = new Map<string, { designation: string, department: string }>();
+  for (const emp of employees) {
+    if (emp.designation && !uniqueDesignations.has(emp.designation)) {
+      uniqueDesignations.set(emp.designation, {
+        designation: emp.designation,
+        department: emp.department
+      });
+    }
+  }
+
+  // Create or update job roles for all unique designations
+  const jobRolesMap = new Map<string, any>();
+  for (const [designation, data] of uniqueDesignations) {
+    const jobRole = await prisma.jobRole.upsert({
+      where: { name: designation },
+      update: {
+        department: data.department,
+        level: determineJobLevel(designation),
+        description: `${designation} in ${data.department}`,
+      },
+      create: {
+        name: designation,
+        department: data.department,
+        level: determineJobLevel(designation),
+        description: `${designation} in ${data.department}`,
+      },
+    });
+    jobRolesMap.set(designation, jobRole);
+  }
+
+  console.log(`✅ Created ${jobRolesMap.size} job roles\n`);
+
+  // ============================================================================
+  // STEP 4: Create users from employee data
   // ============================================================================
   console.log('👥 Creating users...');
 
@@ -90,12 +138,27 @@ async function main() {
     return ['LEARNER'];
   };
 
-  // First pass: Create all users without manager relationships
+  // First pass: Create or update all users without manager relationships
   const idMapping = new Map<number, string>(); // Map old ID to new cuid
 
   for (const emp of employees) {
-    const user = await prisma.user.create({
-      data: {
+    // Find matching job role for this employee
+    const jobRole = jobRolesMap.get(emp.designation);
+
+    const user = await prisma.user.upsert({
+      where: { email: emp.email },
+      update: {
+        employeeNo: emp.employeeNo,
+        name: emp.name,
+        designation: emp.designation,
+        department: emp.department,
+        location: emp.location,
+        level: emp.level,
+        resigned: emp.resigned || false,
+        systemRoles: determineSystemRoles(emp.designation),
+        roleId: jobRole?.id, // Link to job role
+      },
+      create: {
         employeeNo: emp.employeeNo,
         name: emp.name,
         email: emp.email,
@@ -105,6 +168,7 @@ async function main() {
         level: emp.level,
         resigned: emp.resigned || false,
         systemRoles: determineSystemRoles(emp.designation),
+        roleId: jobRole?.id, // Link to job role
       },
     });
 
@@ -126,44 +190,69 @@ async function main() {
     }
   }
 
-  console.log(`✅ Created ${employees.length} users with manager relationships\n`);
+  console.log(`✅ Created ${employees.length} users with manager relationships and job roles\n`);
 
   // ============================================================================
-  // STEP 4: Create skill categories
+  // STEP 5: Create skill categories
   // ============================================================================
   console.log('📁 Creating skill categories...');
 
   const categories = await Promise.all([
-    prisma.skillCategory.create({
-      data: {
+    prisma.skillCategory.upsert({
+      where: { name: 'Programming Language' },
+      update: {
+        description: 'Core programming languages and syntax',
+        colorClass: 'blue-500',
+      },
+      create: {
         name: 'Programming Language',
         description: 'Core programming languages and syntax',
         colorClass: 'blue-500',
       },
     }),
-    prisma.skillCategory.create({
-      data: {
+    prisma.skillCategory.upsert({
+      where: { name: 'Framework' },
+      update: {
+        description: 'Development frameworks and libraries',
+        colorClass: 'purple-500',
+      },
+      create: {
         name: 'Framework',
         description: 'Development frameworks and libraries',
         colorClass: 'purple-500',
       },
     }),
-    prisma.skillCategory.create({
-      data: {
+    prisma.skillCategory.upsert({
+      where: { name: 'Database' },
+      update: {
+        description: 'Database technologies and data management',
+        colorClass: 'green-500',
+      },
+      create: {
         name: 'Database',
         description: 'Database technologies and data management',
         colorClass: 'green-500',
       },
     }),
-    prisma.skillCategory.create({
-      data: {
+    prisma.skillCategory.upsert({
+      where: { name: 'Cloud & DevOps' },
+      update: {
+        description: 'Cloud platforms and deployment tools',
+        colorClass: 'orange-500',
+      },
+      create: {
         name: 'Cloud & DevOps',
         description: 'Cloud platforms and deployment tools',
         colorClass: 'orange-500',
       },
     }),
-    prisma.skillCategory.create({
-      data: {
+    prisma.skillCategory.upsert({
+      where: { name: 'Soft Skills' },
+      update: {
+        description: 'Communication, leadership, and collaboration skills',
+        colorClass: 'pink-500',
+      },
+      create: {
         name: 'Soft Skills',
         description: 'Communication, leadership, and collaboration skills',
         colorClass: 'pink-500',
@@ -174,7 +263,7 @@ async function main() {
   console.log(`✅ Created ${categories.length} skill categories\n`);
 
   // ============================================================================
-  // STEP 5: Create demo skills (C# .NET Blazor focus)
+  // STEP 6: Create demo skills (C# .NET Blazor focus)
   // ============================================================================
   console.log('🎯 Creating demo skills...');
 
@@ -184,80 +273,140 @@ async function main() {
   const cloudCategory = categories.find((c: any) => c.name === 'Cloud & DevOps')!;
 
   const skills = await Promise.all([
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'C# Programming' },
+      update: {
+        categoryId: programmingLangCategory.id,
+        description: 'Object-oriented programming with C# including LINQ, async/await, and modern language features',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'C# Programming',
         categoryId: programmingLangCategory.id,
         description: 'Object-oriented programming with C# including LINQ, async/await, and modern language features',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: '.NET Core Framework' },
+      update: {
+        categoryId: frameworkCategory.id,
+        description: 'Cross-platform .NET development including dependency injection, configuration, and middleware',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: '.NET Core Framework',
         categoryId: frameworkCategory.id,
         description: 'Cross-platform .NET development including dependency injection, configuration, and middleware',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'Blazor WebAssembly' },
+      update: {
+        categoryId: frameworkCategory.id,
+        description: 'Client-side Blazor applications with component architecture and state management',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'Blazor WebAssembly',
         categoryId: frameworkCategory.id,
         description: 'Client-side Blazor applications with component architecture and state management',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'Blazor Server' },
+      update: {
+        categoryId: frameworkCategory.id,
+        description: 'Server-side Blazor with SignalR for real-time UI updates',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'Blazor Server',
         categoryId: frameworkCategory.id,
         description: 'Server-side Blazor with SignalR for real-time UI updates',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'Entity Framework Core' },
+      update: {
+        categoryId: databaseCategory.id,
+        description: 'ORM for .NET including migrations, LINQ queries, and database relationships',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'Entity Framework Core',
         categoryId: databaseCategory.id,
         description: 'ORM for .NET including migrations, LINQ queries, and database relationships',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'ASP.NET Core Web API' },
+      update: {
+        categoryId: frameworkCategory.id,
+        description: 'RESTful API development with ASP.NET Core including authentication and authorization',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'ASP.NET Core Web API',
         categoryId: frameworkCategory.id,
         description: 'RESTful API development with ASP.NET Core including authentication and authorization',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'SQL Server' },
+      update: {
+        categoryId: databaseCategory.id,
+        description: 'T-SQL, stored procedures, indexes, and query optimization',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'SQL Server',
         categoryId: databaseCategory.id,
         description: 'T-SQL, stored procedures, indexes, and query optimization',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'Git Version Control' },
+      update: {
+        categoryId: cloudCategory.id,
+        description: 'Version control workflows, branching strategies, and collaboration',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'Git Version Control',
         categoryId: cloudCategory.id,
         description: 'Version control workflows, branching strategies, and collaboration',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'Unit Testing (xUnit)' },
+      update: {
+        categoryId: frameworkCategory.id,
+        description: 'Test-driven development with xUnit, testing patterns, and mocking',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'Unit Testing (xUnit)',
         categoryId: frameworkCategory.id,
         description: 'Test-driven development with xUnit, testing patterns, and mocking',
         proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
       },
     }),
-    prisma.skill.create({
-      data: {
+    prisma.skill.upsert({
+      where: { name: 'Azure DevOps' },
+      update: {
+        categoryId: cloudCategory.id,
+        description: 'CI/CD pipelines, work item tracking, and Azure integration',
+        proficiencyLevels: ['Beginner', 'Intermediate', 'Advanced', 'Expert'],
+      },
+      create: {
         name: 'Azure DevOps',
         categoryId: cloudCategory.id,
         description: 'CI/CD pipelines, work item tracking, and Azure integration',
@@ -269,83 +418,81 @@ async function main() {
   console.log(`✅ Created ${skills.length} skills\n`);
 
   // ============================================================================
-  // STEP 5: Create job roles and role competencies
+  // STEP 7: Create role competencies for common roles
   // ============================================================================
-  console.log('📊 Creating job roles and competencies...');
+  console.log('📊 Creating role competencies...');
 
-  // Create job roles first
-  const softwareEngineerRole = await prisma.jobRole.create({
-    data: {
-      name: 'Software Engineer',
-      department: 'Engineering',
-      level: 'MID',
-      description: 'Mid-level software developer',
-    },
-  });
+  // Find common roles for competency mapping
+  const softwareEngineerRole = await prisma.jobRole.findFirst({ where: { name: 'Software Engineer' } });
+  const seniorEngineerRole = await prisma.jobRole.findFirst({ where: { name: 'Senior Software Engineer' } });
+  const applicationEngineerRole = await prisma.jobRole.findFirst({ where: { name: 'Application Engineer' } });
+  const principalEngineerRole = await prisma.jobRole.findFirst({ where: { name: 'Principal Engineer' } });
 
-  const seniorEngineerRole = await prisma.jobRole.create({
-    data: {
-      name: 'Senior Software Engineer',
-      department: 'Engineering',
-      level: 'SENIOR',
-      description: 'Senior software developer with leadership responsibilities',
-    },
-  });
+  // Create role competencies with new structure (only for roles that exist)
+  const roleCompetencies = [];
 
-  const applicationEngineerRole = await prisma.jobRole.create({
-    data: {
-      name: 'Application Engineer',
-      department: 'Engineering',
-      level: 'MID',
-      description: 'Specialist in application development',
-    },
-  });
+  if (softwareEngineerRole) {
+    roleCompetencies.push(
+      { roleId: softwareEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+      { roleId: softwareEngineerRole.id, skillId: skills[1].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+      { roleId: softwareEngineerRole.id, skillId: skills[4].id, requiredLevel: 'Beginner', priority: 'REQUIRED' as const },
+      { roleId: softwareEngineerRole.id, skillId: skills[7].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+      { roleId: softwareEngineerRole.id, skillId: skills[8].id, requiredLevel: 'Beginner', priority: 'PREFERRED' as const }
+    );
+  }
 
-  const principalEngineerRole = await prisma.jobRole.create({
-    data: {
-      name: 'Principal Engineer',
-      department: 'Engineering',
-      level: 'LEAD',
-      description: 'Technical leadership role',
-    },
-  });
+  if (seniorEngineerRole) {
+    roleCompetencies.push(
+      { roleId: seniorEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
+      { roleId: seniorEngineerRole.id, skillId: skills[1].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
+      { roleId: seniorEngineerRole.id, skillId: skills[2].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+      { roleId: seniorEngineerRole.id, skillId: skills[5].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
+      { roleId: seniorEngineerRole.id, skillId: skills[8].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const }
+    );
+  }
 
-  // Create role competencies with new structure
-  const roleCompetencies = [
-    // Software Engineer
-    { roleId: softwareEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
-    { roleId: softwareEngineerRole.id, skillId: skills[1].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
-    { roleId: softwareEngineerRole.id, skillId: skills[4].id, requiredLevel: 'Beginner', priority: 'REQUIRED' as const },
-    { roleId: softwareEngineerRole.id, skillId: skills[7].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
-    { roleId: softwareEngineerRole.id, skillId: skills[8].id, requiredLevel: 'Beginner', priority: 'PREFERRED' as const },
+  if (applicationEngineerRole) {
+    roleCompetencies.push(
+      { roleId: applicationEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+      { roleId: applicationEngineerRole.id, skillId: skills[2].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
+      { roleId: applicationEngineerRole.id, skillId: skills[3].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
+      { roleId: applicationEngineerRole.id, skillId: skills[4].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const }
+    );
+  }
 
-    // Senior Software Engineer
-    { roleId: seniorEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-    { roleId: seniorEngineerRole.id, skillId: skills[1].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-    { roleId: seniorEngineerRole.id, skillId: skills[2].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
-    { roleId: seniorEngineerRole.id, skillId: skills[5].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-    { roleId: seniorEngineerRole.id, skillId: skills[8].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+  if (principalEngineerRole) {
+    roleCompetencies.push(
+      { roleId: principalEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Expert', priority: 'REQUIRED' as const },
+      { roleId: principalEngineerRole.id, skillId: skills[1].id, requiredLevel: 'Expert', priority: 'REQUIRED' as const },
+      { roleId: principalEngineerRole.id, skillId: skills[2].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
+      { roleId: principalEngineerRole.id, skillId: skills[5].id, requiredLevel: 'Expert', priority: 'REQUIRED' as const },
+      { roleId: principalEngineerRole.id, skillId: skills[9].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const }
+    );
+  }
 
-    // Application Engineer
-    { roleId: applicationEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
-    { roleId: applicationEngineerRole.id, skillId: skills[2].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-    { roleId: applicationEngineerRole.id, skillId: skills[3].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-    { roleId: applicationEngineerRole.id, skillId: skills[4].id, requiredLevel: 'Intermediate', priority: 'REQUIRED' as const },
+  if (roleCompetencies.length > 0) {
+    // Use upsert for each role competency to handle existing ones
+    for (const competency of roleCompetencies) {
+      await prisma.roleCompetency.upsert({
+        where: {
+          roleId_skillId: {
+            roleId: competency.roleId,
+            skillId: competency.skillId,
+          },
+        },
+        update: {
+          requiredLevel: competency.requiredLevel,
+          priority: competency.priority,
+        },
+        create: competency,
+      });
+    }
+  }
 
-    // Principal Engineer
-    { roleId: principalEngineerRole.id, skillId: skills[0].id, requiredLevel: 'Expert', priority: 'REQUIRED' as const },
-    { roleId: principalEngineerRole.id, skillId: skills[1].id, requiredLevel: 'Expert', priority: 'REQUIRED' as const },
-    { roleId: principalEngineerRole.id, skillId: skills[2].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-    { roleId: principalEngineerRole.id, skillId: skills[5].id, requiredLevel: 'Expert', priority: 'REQUIRED' as const },
-    { roleId: principalEngineerRole.id, skillId: skills[9].id, requiredLevel: 'Advanced', priority: 'REQUIRED' as const },
-  ];
-
-  await prisma.roleCompetency.createMany({ data: roleCompetencies });
-
-  console.log(`✅ Created 4 job roles and ${roleCompetencies.length} role competencies\n`);
+  console.log(`✅ Created ${roleCompetencies.length} role competencies\n`);
 
   // ============================================================================
-  // STEP 6: Create demo assessments
+  // STEP 8: Create demo assessments
   // ============================================================================
   console.log('📝 Creating demo assessments...');
 
@@ -404,7 +551,7 @@ async function main() {
   console.log(`✅ Created ${assessments.length} assessments\n`);
 
   // ============================================================================
-  // STEP 7: Create demo questions for assessments
+  // STEP 9: Create demo questions for assessments
   // ============================================================================
   console.log('❓ Creating demo questions...');
 
@@ -680,7 +827,7 @@ async function main() {
   console.log(`✅ Created ${totalQuestions} questions across all assessments\n`);
 
   // ============================================================================
-  // STEP 8: Create system configuration
+  // STEP 10: Create system configuration
   // ============================================================================
   console.log('⚙️  Creating system configuration...');
 
@@ -693,14 +840,22 @@ async function main() {
     { key: 'otpExpiryMinutes', value: '5', description: 'OTP expiry time in minutes' },
   ];
 
-  await prisma.systemConfig.createMany({
-    data: systemConfigs,
-  });
+  // Use upsert for each system config to handle existing ones
+  for (const config of systemConfigs) {
+    await prisma.systemConfig.upsert({
+      where: { key: config.key },
+      update: {
+        value: config.value,
+        description: config.description,
+      },
+      create: config,
+    });
+  }
 
   console.log(`✅ Created ${systemConfigs.length} system configurations\n`);
 
   // ============================================================================
-  // STEP 9: Create initial skill matrix for sample employees
+  // STEP 11: Create initial skill matrix for sample employees
   // ============================================================================
   console.log('📈 Creating initial skill matrix...');
 

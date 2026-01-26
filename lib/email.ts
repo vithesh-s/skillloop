@@ -13,6 +13,46 @@ interface SendVerificationRequestParams {
     }
 }
 
+
+export interface SendEmailParams {
+  to: string
+  subject: string
+  template: 'training-assigned' | 'general'
+  data: any
+}
+
+export async function sendEmail({ to, subject, template, data }: SendEmailParams) {
+  if (!process.env.EMAIL_SERVER) {
+    console.warn('EMAIL_SERVER not configured, skipping email')
+    return
+  }
+  const transport = createTransport(process.env.EMAIL_SERVER)
+  const from = process.env.EMAIL_FROM || 'noreply@skillloop.com'
+
+  // Simple template logic for now
+  const htmlBody = `
+        <div style="font-family: sans-serif; padding: 20px;">
+            <h2>${subject}</h2>
+            <p>Hello,</p>
+            <p>${data.message || 'You have a new notification.'}</p>
+            <p>Click <a href="${process.env.NEXTAUTH_URL}">here</a> to login.</p>
+        </div>
+    `
+
+  try {
+    await transport.sendMail({
+      to,
+      from,
+      subject,
+      html: htmlBody,
+    })
+    console.log(`✅ Email sent to ${to}`)
+  } catch (error) {
+    console.error('❌ Error sending email:', error)
+    // Don't throw, just log
+  }
+}
+
 /**
  * Send a verification email with a magic link
  * This function is called by NextAuth when a user requests to sign in

@@ -129,7 +129,11 @@ export function AssessmentsTable({
               </TableRow>
             ) : (
               assessments.map((assessment) => (
-                <TableRow key={assessment.id}>
+                <TableRow 
+                  key={assessment.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => router.push(`/admin/assessments/${assessment.id}`)}
+                >
                   <TableCell className="font-medium">{assessment.title}</TableCell>
                   <TableCell>{assessment.skill.name}</TableCell>
                   <TableCell className="text-center">
@@ -142,7 +146,7 @@ export function AssessmentsTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">{assessment.duration} min</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">

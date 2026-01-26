@@ -14,16 +14,27 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
-import { RiSearchLine, RiDownloadLine, RiEyeLine } from '@remixicon/react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { AssignTrainingDialog } from './AssignTrainingDialog'
+import { RiSearchLine, RiDownloadLine, RiEyeLine, RiBookOpenLine, RiCheckboxMultipleLine } from '@remixicon/react'
 
 interface EmployeeTNATableProps {
   employeeTNAs: TNAReport[]
+  availableTrainings?: Array<{
+    id: string
+    topicName: string
+    mode: string
+    skillId: string
+    skill: { name: string }
+  }>
 }
 
-export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
+export function EmployeeTNATable({ employeeTNAs, availableTrainings = [] }: EmployeeTNATableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState<'name' | 'gap' | 'critical'>('critical')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set())
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
 
   // Filter and sort
   const filteredTNAs = employeeTNAs
@@ -66,6 +77,33 @@ export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
     return 'text-blue-500'
   }
 
+  const toggleEmployeeSelection = (userId: string) => {
+    const newSelection = new Set(selectedEmployees)
+    if (newSelection.has(userId)) {
+      newSelection.delete(userId)
+    } else {
+      newSelection.add(userId)
+    }
+    setSelectedEmployees(newSelection)
+  }
+
+  const toggleAllSelection = () => {
+    if (selectedEmployees.size === filteredTNAs.length) {
+      setSelectedEmployees(new Set())
+    } else {
+      setSelectedEmployees(new Set(filteredTNAs.map(tna => tna.userId)))
+    }
+  }
+
+  const handleAssignTraining = (userId?: string) => {
+    if (userId) {
+      setSelectedEmployees(new Set([userId]))
+    }
+    setAssignDialogOpen(true)
+  }
+
+  const selectedTNAs = employeeTNAs.filter(tna => selectedEmployees.has(tna.userId))
+
   if (employeeTNAs.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -87,6 +125,12 @@ export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
             className="pl-10"
           />
         </div>
+        {selectedEmployees.size > 0 && (
+          <Button onClick={() => handleAssignTraining()}>
+            <RiBookOpenLine className="mr-2 h-4 w-4" />
+            Assign Training ({selectedEmployees.size})
+          </Button>
+        )}
         <Button variant="outline">
           <RiDownloadLine className="mr-2 h-4 w-4" />
           Export All
@@ -98,6 +142,13 @@ export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={selectedEmployees.size === filteredTNAs.length && filteredTNAs.length > 0}
+                  onCheckedChange={toggleAllSelection}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort('name')}
@@ -125,6 +176,13 @@ export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
           <TableBody>
             {filteredTNAs.map((tna) => (
               <TableRow key={tna.userId}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedEmployees.has(tna.userId)}
+                    onCheckedChange={() => toggleEmployeeSelection(tna.userId)}
+                    aria-label={`Select ${tna.userName}`}
+                  />
+                </TableCell>
                 <TableCell>
                   <div>
                     <p className="font-medium">{tna.userName}</p>
@@ -162,6 +220,15 @@ export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      title="Assign Training"
+                      onClick={() => handleAssignTraining(tna.userId)}
+                      disabled={tna.criticalGapsCount === 0 && tna.highGapsCount === 0}
+                    >
+                      <RiBookOpenLine className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" title="View Details">
                       <RiEyeLine className="h-4 w-4" />
                     </Button>
@@ -185,7 +252,23 @@ export function EmployeeTNATable({ employeeTNAs }: EmployeeTNATableProps) {
       {/* Results Summary */}
       <div className="text-sm text-muted-foreground">
         Showing {filteredTNAs.length} of {employeeTNAs.length} employees
+        {selectedEmployees.size > 0 && (
+          <span className="ml-2 font-medium">• {selectedEmployees.size} selected</span>
+        )}
       </div>
+
+      {/* Assign Training Dialog */}
+      <AssignTrainingDialog
+        selectedEmployees={selectedTNAs}
+        open={assignDialogOpen}
+        onOpenChange={(open) => {
+          setAssignDialogOpen(open)
+          if (!open) {
+            setSelectedEmployees(new Set())
+          }
+        }}
+        availableTrainings={availableTrainings}
+      />
     </div>
   )
 }

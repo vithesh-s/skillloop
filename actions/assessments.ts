@@ -421,20 +421,36 @@ export async function addQuestion(
   }
 
   try {
-    // Get max orderIndex
-    const [maxOrder, assessment] = await Promise.all([
+    // Get max orderIndex, assessment details, and current total marks
+    const [maxOrder, assessment, currentTotal] = await Promise.all([
       prisma.question.aggregate({
         where: { assessmentId },
         _max: { orderIndex: true },
       }),
       prisma.assessment.findUnique({
         where: { id: assessmentId },
-        select: { skillId: true }
+        select: { skillId: true, totalMarks: true }
+      }),
+      prisma.question.aggregate({
+        where: { assessmentId },
+        _sum: { marks: true },
       })
     ])
 
     if (!assessment) {
       return { message: "Assessment not found", success: false }
+    }
+
+    // Validate total marks won't exceed target
+    const currentMarks = currentTotal._sum.marks || 0
+    const newTotalMarks = currentMarks + validatedFields.data.marks
+    
+    if (newTotalMarks > assessment.totalMarks) {
+      const excess = newTotalMarks - assessment.totalMarks
+      return {
+        message: `Cannot add question. This would exceed the target score by ${excess} marks. Target: ${assessment.totalMarks}, Current: ${currentMarks}, Adding: ${validatedFields.data.marks}`,
+        success: false,
+      }
     }
 
     const orderIndex = (maxOrder._max.orderIndex || 0) + 1
@@ -1445,6 +1461,139 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       })
       return assignments
     } catch (error) {
+      return []
+    }
+  }
+
+  export async function getAssessmentSubmissionStatuses(assessmentId: string) {
+    const session = await auth()
+
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+      return []
+    }
+
+    try {
+      // Get all assignments with user and attempt data
+      const assignments = await prisma.assessmentAssignment.findMany({
+        where: { assessmentId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+              designation: true
+            }
+          },
+          assessment: {
+            select: {
+              totalMarks: true,
+              questions: {
+                select: {
+                  id: true,
+                  questionType: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { assignedAt: 'desc' }
+      })
+
+      // Get attempts for all assigned users
+      const userIds = assignments.map(a => a.userId)
+      const attempts = await prisma.assessmentAttempt.findMany({
+        where: {
+          assessmentId,
+          userId: { in: userIds }
+        },
+        include: {
+          answers: {
+            include: {
+              question: {
+                select: {
+                  questionType: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { startedAt: 'desc' }
+      })
+
+      // Map attempts to users (get latest attempt per user)
+      const attemptsMap = new Map()
+      attempts.forEach(attempt => {
+        if (!attemptsMap.has(attempt.userId)) {
+          attemptsMap.set(attempt.userId, attempt)
+        }
+      })
+
+      // Build status data
+      const statuses = assignments.map(assignment => {
+        const attempt = attemptsMap.get(assignment.userId)
+        
+        let status: "NOT_ATTEMPTED" | "IN_PROGRESS" | "COMPLETED" | "NEEDS_GRADING" = "NOT_ATTEMPTED"
+        let score: number | null = null
+        let percentage: number | null = null
+        let startedAt: Date | null = null
+        let completedAt: Date | null = null
+        let descriptiveQuestionsCount = 0
+        let gradedQuestionsCount = 0
+        let attemptId: string | null = null
+
+        if (attempt) {
+          attemptId = attempt.id
+          startedAt = attempt.startedAt
+          completedAt = attempt.completedAt
+          score = attempt.score
+          percentage = attempt.percentage
+
+          if (attempt.status === "in_progress") {
+            status = "IN_PROGRESS"
+          } else if (attempt.status === "completed" || attempt.status === "grading") {
+            // Count descriptive questions and how many are graded
+            const descriptiveAnswers = attempt.answers.filter(
+              a => a.question.questionType === "DESCRIPTIVE"
+            )
+            descriptiveQuestionsCount = descriptiveAnswers.length
+            gradedQuestionsCount = descriptiveAnswers.filter(
+              a => a.marksAwarded !== null
+            ).length
+
+            if (descriptiveQuestionsCount > gradedQuestionsCount) {
+              status = "NEEDS_GRADING"
+            } else {
+              status = "COMPLETED"
+            }
+          }
+        }
+
+        return {
+          userId: assignment.userId,
+          assignmentId: assignment.id,
+          user: assignment.user,
+          assignedAt: assignment.assignedAt,
+          dueDate: assignment.dueDate,
+          status,
+          attemptId,
+          attempt: attempt ? {
+            score,
+            percentage,
+            startedAt,
+            completedAt,
+            descriptiveQuestionsCount,
+            gradedQuestionsCount,
+            totalQuestions: assignment.assessment.questions.length,
+            answeredQuestions: attempt.answers.length
+          } : null
+        }
+      })
+
+      return statuses
+    } catch (error) {
+      console.error("Get submission statuses error:", error)
       return []
     }
   }
