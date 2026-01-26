@@ -17,7 +17,7 @@ interface GapCategoryBadgeProps {
 const categoryConfig = {
   [GapCategory.CRITICAL]: {
     label: 'Critical',
-    className: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground',
+    className: 'bg-red-600 hover:bg-red-700 text-white',
     description: 'Requires immediate attention (>50% gap)',
   },
   [GapCategory.HIGH]: {
@@ -42,8 +42,26 @@ const categoryConfig = {
   },
 }
 
-export function GapCategoryBadge({ category, gapPercentage }: GapCategoryBadgeProps) {
+export function GapCategoryBadge({ category, gapPercentage, status }: GapCategoryBadgeProps & { status?: string }) {
   const config = categoryConfig[category]
+
+  // For personal goals, show a special badge without gap percentage
+  if (status === 'personal_goal') {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+              Personal Goal
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Self-tracked skill for personal development</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
 
   return (
     <TooltipProvider>

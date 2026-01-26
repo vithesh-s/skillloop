@@ -18,11 +18,38 @@ export default async function ManagerCreateTrainingPage() {
         orderBy: { name: 'asc' }
     })
     
-    // Fetch trainers for offline training selection
+    // Fetch all active employees for assessment owner selection
     const trainers = await prisma.user.findMany({
-        where: { systemRoles: { has: 'TRAINER' } },
-        select: { id: true, name: true, email: true }
+        where: { 
+            resigned: false
+        },
+        select: { id: true, name: true, email: true, department: true, systemRoles: true },
+        orderBy: { name: 'asc' }
     })
     
-    return <CreateTrainingForm skills={skills} trainers={trainers} />
+    // Sort by roles: ADMIN first, then MANAGER, then TRAINER, then LEARNER
+    const roleOrder = { ADMIN: 1, MANAGER: 2, TRAINER: 3, LEARNER: 4 }
+    trainers.sort((a, b) => {
+        const aTopRole = Math.min(...(a.systemRoles?.map(r => roleOrder[r] || 99) || [99]))
+        const bTopRole = Math.min(...(b.systemRoles?.map(r => roleOrder[r] || 99) || [99]))
+        if (aTopRole !== bTopRole) return aTopRole - bTopRole
+        return a.name.localeCompare(b.name)
+    })
+    
+    // Get all unique departments from all users (not just trainers)
+    const allDepartments = await prisma.user.findMany({
+        where: { 
+            department: { not: null },
+            resigned: false
+        },
+        select: { department: true },
+        distinct: ['department']
+    })
+    
+    const departments = allDepartments
+        .map(u => u.department)
+        .filter(Boolean)
+        .sort() as string[]
+    
+    return <CreateTrainingForm skills={skills} trainers={trainers} departments={departments} userRole="manager" />
 }

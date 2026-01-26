@@ -14,11 +14,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { GapCategoryBadge } from './GapCategoryBadge'
+import { EditDesiredLevelDialog } from './EditDesiredLevelDialog'
 import { RiArrowUpLine, RiArrowDownLine, RiEditLine, RiDeleteBinLine } from '@remixicon/react'
 import { format } from 'date-fns'
-
-import { toast } from 'sonner'
 import { deleteSkillMatrixEntry } from '@/actions/skill-matrix'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 type SortField = 'skillName' | 'gapPercentage' | 'lastAssessed' | 'category'
 type SortOrder = 'asc' | 'desc'
@@ -31,15 +32,24 @@ interface SkillGapsTableProps {
 export function SkillGapsTable({ skillGaps, userId }: SkillGapsTableProps) {
   const [sortField, setSortField] = useState<SortField>('gapPercentage')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
+  const [editingSkill, setEditingSkill] = useState<SkillGapData | null>(null)
+  const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null)
+  const router = useRouter()
 
-  const handleDelete = async (skillId: string) => {
-    if (window.confirm("Are you sure you want to remove this skill from your matrix?")) {
-      try {
-        await deleteSkillMatrixEntry(userId, skillId)
-        toast.success("Skill removed successfully")
-      } catch (error) {
-        toast.error("Failed to remove skill")
-      }
+  const handleDelete = async (skillId: string, skillName: string) => {
+    if (!confirm(`Are you sure you want to remove "${skillName}" from your skill matrix?`)) {
+      return
+    }
+
+    setDeletingSkillId(skillId)
+    try {
+      await deleteSkillMatrixEntry(userId, skillId)
+      toast.success('Skill removed successfully')
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove skill')
+    } finally {
+      setDeletingSkillId(null)
     }
   }
 
@@ -151,23 +161,18 @@ export function SkillGapsTable({ skillGaps, userId }: SkillGapsTableProps) {
                 {gap.currentLevel ? (
                   <Badge variant="secondary">{gap.currentLevel}</Badge>
                 ) : (
-                  <span className="text-muted-foreground text-sm">Not assessed</span>
+                  <Badge variant="outline" className="text-muted-foreground">Not assessed</Badge>
                 )}
               </TableCell>
               <TableCell>
                 <Badge>{gap.desiredLevel}</Badge>
               </TableCell>
               <TableCell>
-                <div className="space-y-1 min-w-37.5">
-                  <div className="flex items-center justify-between">
-                    <GapCategoryBadge 
-                      category={gap.gapCategory} 
-                      gapPercentage={gap.gapPercentage} 
-                    />
-                  </div>
-                  <Progress 
-                    value={100 - gap.gapPercentage} 
-                    className="h-2"
+                <div className="min-w-37.5">
+                  <GapCategoryBadge 
+                    category={gap.gapCategory} 
+                    gapPercentage={gap.gapPercentage}
+                    status={gap.status}
                   />
                 </div>
               </TableCell>
@@ -176,7 +181,7 @@ export function SkillGapsTable({ skillGaps, userId }: SkillGapsTableProps) {
                   variant={gap.trainingAssigned ? "default" : "secondary"}
                   className={gap.trainingAssigned ? "bg-blue-500" : ""}
                 >
-                  {gap.trainingAssigned ? 'Training Assigned' : gap.status.replace(/_/g, ' ')}
+                  {gap.trainingAssigned ? 'Training Assigned' : gap.status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -189,28 +194,51 @@ export function SkillGapsTable({ skillGaps, userId }: SkillGapsTableProps) {
                 )}
               </TableCell>
               <TableCell>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    title="Edit desired level"
-                  >
-                    <RiEditLine className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    title="Remove from matrix"
-                    onClick={() => handleDelete(gap.skillId)}
-                  >
-                    <RiDeleteBinLine className="h-4 w-4" />
-                  </Button>
+                <div className="flex items-center gap-1">
+                  {!gap.trainingAssigned ? (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        title="Edit skill levels"
+                        onClick={() => setEditingSkill(gap)}
+                        disabled={deletingSkillId === gap.skillId}
+                      >
+                        <RiEditLine className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        title="Remove skill"
+                        onClick={() => handleDelete(gap.skillId, gap.skillName)}
+                        disabled={deletingSkillId === gap.skillId}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <RiDeleteBinLine className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      {/* Edit Desired Level Dialog */}
+      {editingSkill && (
+        <EditDesiredLevelDialog
+          open={!!editingSkill}
+          onOpenChange={(open) => !open && setEditingSkill(null)}
+          skillId={editingSkill.skillId}
+          skillName={editingSkill.skillName}
+          userId={userId}
+          currentDesiredLevel={editingSkill.desiredLevel}
+          currentLevel={editingSkill.currentLevel}
+        />
+      )}
     </div>
   )
 }

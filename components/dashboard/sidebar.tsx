@@ -15,6 +15,7 @@ import {
   RiEditLine,
   RiBarChartBoxLine,
   RiBookOpenLine,
+  RiCalendarLine,
 } from "@remixicon/react";
 
 interface SidebarProps {
@@ -57,8 +58,13 @@ const adminNavItems = [
     icon: RiGraduationCapLine,
   },
   {
+    title: "Calendar",
+    href: "/admin/calendar",
+    icon: RiCalendarLine,
+  },
+  {
     title: "Assign Training",
-    href: "/manager/assign-training",
+    href: "/admin/assign-training",
     icon: RiBookOpenLine,
   },
   {
@@ -113,9 +119,9 @@ const managerNavItems = [
     icon: RiUserLine,
   },
   {
-    title: "Training Catalog",
-    href: "/manager/create",
-    icon: RiBookOpenLine,
+    title: "Training Management",
+    href: "/manager/training",
+    icon: RiGraduationCapLine,
   },
   {
     title: "Assign Training",
@@ -128,8 +134,13 @@ const managerNavItems = [
     icon: RiFileChartLine,
   },
   {
+    title: "Calendar",
+    href: "/manager/calendar",
+    icon: RiCalendarLine,
+  },
+  {
     title: "TNA Reports",
-    href: "/admin/tna",
+    href: "/manager/tna",
     icon: RiBarChartBoxLine,
   },
 ];
@@ -142,11 +153,6 @@ const employeeNavItems = [
   },
   {
     title: "My Skills",
-    href: "/employee/skills",
-    icon: RiBookLine,
-  },
-  {
-    title: "Skill Gaps",
     href: "/employee/skill-gaps",
     icon: RiBarChartBoxLine,
   },
@@ -154,6 +160,16 @@ const employeeNavItems = [
     title: "My Trainings",
     href: "/employee/my-trainings",
     icon: RiBookOpenLine,
+  },
+  {
+    title: "Assessment Duties",
+    href: "/employee/assessment-duties",
+    icon: RiEditLine,
+  },
+  {
+    title: "Calendar",
+    href: "/employee/calendar",
+    icon: RiCalendarLine,
   },
   {
     title: "Learning Path",

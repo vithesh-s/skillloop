@@ -57,7 +57,7 @@ export default async function SkillGapsPage(props: {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Skill Gaps</h1>
+          <h1 className="text-3xl font-bold tracking-tight">My Skills</h1>
           <p className="text-muted-foreground mt-1">
             Track your skill development progress and identify training opportunities
           </p>
@@ -115,6 +115,11 @@ async function SkillGapsContent({ userId, filters }: { userId: string, filters?:
 
   return (
     <>
+      {/* Add More Skills Button */}
+      <div className="flex justify-end">
+        <AddSkillDialog skills={skills} />
+      </div>
+
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -179,7 +184,7 @@ async function SkillGapsContent({ userId, filters }: { userId: string, filters?:
         <CardContent>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
-              <Badge variant="destructive">Critical (&gt;50%)</Badge>
+              <Badge className="bg-red-600 hover:bg-red-700 text-white">Critical (&gt;50%)</Badge>
               <span className="text-sm text-muted-foreground">{criticalGapsCount} skills</span>
             </div>
             <div className="flex items-center gap-2">

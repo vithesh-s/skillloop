@@ -36,6 +36,10 @@ import type { Assessment, Skill } from "@prisma/client"
 
 interface AssessmentTableRow extends Assessment {
   skill: Skill
+  creator: {
+    name: string | null
+    email: string
+  }
   _count: {
     questions: number
     attempts: number
@@ -116,14 +120,14 @@ export function AssessmentsTable({
               <TableHead className="text-center">Questions</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Created By</TableHead>
               <TableHead className="text-center">Duration</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {assessments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+              <TableRow>8} className="text-center py-8 text-muted-foreground">
                   No assessments found
                 </TableCell>
               </TableRow>
@@ -143,6 +147,10 @@ export function AssessmentsTable({
                   <TableCell>
                     <Badge variant="outline">
                       {assessment.isPreAssessment ? "Pre" : "Post"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {assessment.creator.name || assessment.creator.email}sment.isPreAssessment ? "Pre" : "Post"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center">{assessment.duration} min</TableCell>

@@ -45,12 +45,23 @@ interface AddSkillDialogProps {
 }
 
 const COMPETENCY_LEVELS = [
-  { value: 1, label: "Beginner", description: "New to this" },
-  { value: 2, label: "Basic", description: "Learning" },
+  { value: 1, label: "Beginner", description: "Just starting out" },
+  { value: 2, label: "Basic", description: "Little experience" },
   { value: 3, label: "Intermediate", description: "Comfortable" },
-  { value: 4, label: "Advanced", description: "Skilled" },
-  { value: 5, label: "Expert", description: "Master" },
+  { value: 4, label: "Advanced", description: "Very skilled" },
+  { value: 5, label: "Expert", description: "Master level" },
 ]
+
+const numericToLevel = (value: number): string => {
+  const mapping: Record<number, string> = {
+    1: 'BEGINNER',
+    2: 'INTERMEDIATE',
+    3: 'INTERMEDIATE', // Basic maps to INTERMEDIATE  
+    4: 'ADVANCED',
+    5: 'EXPERT',
+  }
+  return mapping[value] || 'BEGINNER'
+}
 
 export function AddSkillDialog({
   skills,
@@ -83,10 +94,10 @@ export function AddSkillDialog({
     }
   }, [open])
 
-  // Ensure desired level is at least current level
+  // Ensure desired level is HIGHER than current level (not equal)
   useEffect(() => {
-    if (desiredLevel < currentLevel) {
-      setDesiredLevel(currentLevel)
+    if (desiredLevel <= currentLevel) {
+      setDesiredLevel(currentLevel + 1)
     }
   }, [currentLevel, desiredLevel])
 
@@ -137,7 +148,7 @@ export function AddSkillDialog({
           {buttonText}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add a Skill</DialogTitle>
           <DialogDescription>
@@ -145,17 +156,17 @@ export function AddSkillDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Skill Selection */}
           <div className="space-y-2">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-2">
               <Button
                 type="button"
                 variant={!isCustomSkill ? "default" : "outline"}
                 size="sm"
                 onClick={() => setIsCustomSkill(false)}
               >
-                Select Existing
+                Choose from List
               </Button>
               <Button
                 type="button"
@@ -163,7 +174,7 @@ export function AddSkillDialog({
                 size="sm"
                 onClick={() => setIsCustomSkill(true)}
               >
-                Create New
+                Add Custom Skill
               </Button>
             </div>
 
@@ -208,24 +219,23 @@ export function AddSkillDialog({
             <p className="text-xs text-muted-foreground">
               How would you rate your current skill level?
             </p>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-5 gap-2">
               {COMPETENCY_LEVELS.map((level) => (
                 <button
                   key={level.value}
                   type="button"
                   onClick={() => setCurrentLevel(level.value)}
                   className={`
-                    flex flex-col items-center justify-center p-3 rounded-md border transition-all text-center
+                    flex flex-col items-center justify-center p-2.5 rounded-lg border-2 transition-all
                     ${currentLevel === level.value 
-                      ? 'border-primary bg-primary/10 shadow-sm' 
+                      ? 'border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20' 
                       : 'border-border hover:border-primary/50 hover:bg-accent'
                     }
                   `}
-                  style={{ minWidth: '90px', minHeight: '90px' }}
                 >
-                  <span className="text-base font-bold">{level.value}</span>
-                  <span className="text-sm font-medium mt-1 leading-tight break-words">{level.label}</span>
-                  <span className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                  <span className="text-xl font-bold">{level.value}</span>
+                  <span className="text-[11px] font-medium mt-0.5">{level.label}</span>
+                  <span className="text-[9px] text-muted-foreground leading-tight">
                     {level.description}
                   </span>
                 </button>
@@ -239,27 +249,26 @@ export function AddSkillDialog({
             <p className="text-xs text-muted-foreground">
               What level do you want to achieve?
             </p>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-5 gap-2">
               {COMPETENCY_LEVELS.map((level) => (
                 <button
                   key={level.value}
                   type="button"
                   onClick={() => setDesiredLevel(level.value)}
-                  disabled={level.value < currentLevel}
+                  disabled={level.value <= currentLevel}
                   className={`
-                    flex flex-col items-center justify-center p-3 rounded-md border transition-all text-center
+                    flex flex-col items-center justify-center p-2.5 rounded-lg border-2 transition-all
                     ${desiredLevel === level.value 
-                      ? 'border-primary bg-primary/10 shadow-sm' 
-                      : level.value < currentLevel
+                      ? 'border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20' 
+                      : level.value <= currentLevel
                       ? 'border-border bg-muted/50 opacity-50 cursor-not-allowed'
                       : 'border-border hover:border-primary/50 hover:bg-accent'
                     }
                   `}
-                  style={{ minWidth: '70px', minHeight: '90px' }}
                 >
-                  <span className="text-base font-bold">{level.value}</span>
-                  <span className="text-sm font-medium mt-1 leading-tight break-words">{level.label}</span>
-                  <span className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                  <span className="text-xl font-bold">{level.value}</span>
+                  <span className="text-[11px] font-medium mt-0.5">{level.label}</span>
+                  <span className="text-[9px] text-muted-foreground leading-tight">
                     {level.description}
                   </span>
                 </button>
@@ -275,13 +284,12 @@ export function AddSkillDialog({
               placeholder="Any additional information about your experience with this skill..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="text-sm"
+              rows={3}
             />
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"

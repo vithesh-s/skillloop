@@ -22,7 +22,7 @@ export default async function ManagerTrainingsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Training Catalog</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Training Management</h1>
                     <p className="text-muted-foreground">Manage training programs and assignments.</p>
                 </div>
                 <Button asChild>
@@ -32,7 +32,7 @@ export default async function ManagerTrainingsPage() {
                     </Link>
                 </Button>
             </div>
-            <TrainingsTable trainings={trainings || []} />
+            <TrainingsTable trainings={trainings || []} userRole="manager" />
         </div>
     )
 }

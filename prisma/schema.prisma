@@ -76,6 +76,12 @@ enum AttendanceStatus {
 enum NotificationType {
   ASSESSMENT_ASSIGNED
   TRAINING_ASSIGNED
+  TRAINING_PROGRESS_UPDATED
+  TRAINING_FEEDBACK
+  TRAINING_PROOF_SUBMITTED
+  TRAINING_PROOF_REVIEWED
+  TRAINING_COMPLETED
+  TRAINING_PROOF_REJECTED
   PROGRESS_DUE
   FEEDBACK_PENDING
   PROOF_SUBMITTED
@@ -133,6 +139,7 @@ model User {
   mentorAssignments  TrainingAssignment[]  @relation("MentorAssignments")
   assessmentAssignments AssessmentAssignment[] 
   assignedAssessments   AssessmentAssignment[] @relation("AssignedBy")
+  ownedTrainingAssessments Training[]          @relation("TrainingAssessmentOwner")
 
   // NextAuth.js relations
   accounts Account[]
@@ -267,6 +274,7 @@ model Assessment {
   title           String
   description     String?
   skillId         String
+  trainingId      String?          // Link to training for auto-created assessments
   totalMarks      Int
   passingScore    Int
   duration        Int              // in minutes
@@ -276,15 +284,17 @@ model Assessment {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  skill     Skill               @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  creator   User                @relation(fields: [createdById], references: [id])
-  @@index([status])
-  @@index([createdById])
-  questions Question[]
-  attempts  AssessmentAttempt[]
+  skill       Skill                  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  training    Training?              @relation(fields: [trainingId], references: [id], onDelete: SetNull)
+  creator     User                   @relation(fields: [createdById], references: [id])
+  questions   Question[]
+  attempts    AssessmentAttempt[]
   assignments AssessmentAssignment[]
 
   @@index([skillId])
+  @@index([status])
+  @@index([createdById])
+  @@index([trainingId])
 }
 
 // 4. Question - Assessment questions with various types
@@ -393,30 +403,34 @@ model SkillMatrix {
 
 // 8. Training - Training programs (online/offline)
 model Training {
-  id              String        @id @default(cuid())
-  topicName       String
-  description     String?
-  mode            TrainingMode
-  duration        Int           // in hours
-  skillId         String
-  resources       Json?         // Links, files, etc.
-  venue           String?
-  meetingLink     String?
-  maxParticipants Int?
-  createdById     String
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                String        @id @default(cuid())
+  topicName         String
+  description       String?
+  mode              TrainingMode
+  duration          Int           // in hours
+  skillId           String
+  resources         Json?         // Links, files, etc.
+  venue             String?
+  meetingLink       String?
+  maxParticipants   Int?
+  assessmentOwnerId String?       // User responsible for creating assessment questions
+  createdById       String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   skill           Skill                @relation(fields: [skillId], references: [id], onDelete: Cascade)
   creator         User                 @relation(fields: [createdById], references: [id])
+  assessmentOwner User?                @relation("TrainingAssessmentOwner", fields: [assessmentOwnerId], references: [id])
   
   @@index([skillId])
   @@index([mode])
   @@index([createdById])
+  @@index([assessmentOwnerId])
   onlineTraining  OnlineTraining?
   offlineTraining OfflineTraining?
   assignments     TrainingAssignment[]
   calendar        TrainingCalendar[]
+  assessments     Assessment[]
 }
 
 // 9. OnlineTraining - Online-specific training metadata
@@ -499,6 +513,7 @@ model ProofOfCompletion {
   assignmentId     String
   fileName         String
   filePath         String
+  description      String?
   uploadDate       DateTime    @default(now())
   status           ProofStatus @default(PENDING)
   reviewerId       String?

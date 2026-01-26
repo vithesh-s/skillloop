@@ -21,11 +21,14 @@ import { useRouter } from 'next/navigation'
 
 interface TrainingsTableProps {
     trainings: any[]
+    userRole: 'admin' | 'manager' | 'trainer'
 }
 
-export function TrainingsTable({ trainings }: TrainingsTableProps) {
+export function TrainingsTable({ trainings, userRole }: TrainingsTableProps) {
     const [searchTerm, setSearchTerm] = useState('')
     const router = useRouter()
+
+    const basePath = userRole === 'manager' ? '/manager/training' : '/admin/training'
 
     const filteredTrainings = trainings.filter(t =>
         t.topicName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,6 +71,7 @@ export function TrainingsTable({ trainings }: TrainingsTableProps) {
                                 <TableHead>Mode</TableHead>
                                 <TableHead>Duration</TableHead>
                                 <TableHead>Assigned Users</TableHead>
+                                <TableHead>Assessment By</TableHead>
                                 <TableHead>Created By</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -75,7 +79,7 @@ export function TrainingsTable({ trainings }: TrainingsTableProps) {
                         <TableBody>
                             {filteredTrainings.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                         No trainings found.
                                     </TableCell>
                                 </TableRow>
@@ -96,11 +100,14 @@ export function TrainingsTable({ trainings }: TrainingsTableProps) {
                                     </TableCell>
                                     <TableCell>{training.duration}h</TableCell>
                                     <TableCell>{training._count?.assignments || 0}</TableCell>
+                                    <TableCell className="text-sm">
+                                        {training.assessmentOwner?.name || <span className="text-muted-foreground">Not assigned</span>}
+                                    </TableCell>
                                     <TableCell className="text-sm">{training.creator?.name}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <Button size="sm" variant="ghost" asChild>
-                                                <Link href={`/admin/training/${training.id}`}>
+                                                <Link href={`${basePath}/${training.id}`}>
                                                     <RiEyeLine className="h-4 w-4" />
                                                 </Link>
                                             </Button>

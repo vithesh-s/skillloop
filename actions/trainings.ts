@@ -22,12 +22,13 @@ import {
 } from '@/lib/validation'
 import { TrainingStatus, Role } from '@prisma/client'
 import { sendEmail } from '@/lib/email'
+import { eachDayOfInterval, isWeekend } from 'date-fns'
 
 // ============================================================================
 // TRAINING CRUD OPERATIONS
 // ============================================================================
 
-export async function createTraining(data: TrainingInput & { online?: OnlineTrainingInput, offline?: OfflineTrainingInput }) {
+export async function createTraining(data: TrainingInput & { online?: OnlineTrainingInput, offline?: OfflineTrainingInput, assessmentOwnerId?: string }) {
     const session = await auth()
     if (!session?.user?.id) throw new Error('Unauthorized')
 
@@ -52,6 +53,7 @@ export async function createTraining(data: TrainingInput & { online?: OnlineTrai
                     venue: data.venue,
                     meetingLink: data.meetingLink,
                     maxParticipants: data.maxParticipants,
+                    assessmentOwnerId: data.assessmentOwnerId || null,
                     createdById: session.user.id!,
                 },
             })
@@ -78,10 +80,28 @@ export async function createTraining(data: TrainingInput & { online?: OnlineTrai
                 })
             }
 
+            // Auto-create draft Assessment linked to this training
+            const assessmentCreatorId = data.assessmentOwnerId || session.user.id!
+            await tx.assessment.create({
+                data: {
+                    title: `${data.topicName} - Post Assessment`,
+                    description: `Assessment for ${data.topicName} training`,
+                    skillId: data.skillId,
+                    trainingId: training.id,
+                    totalMarks: 100, // Default, to be updated by trainer
+                    passingScore: 60, // Default
+                    duration: 60, // Default 60 minutes
+                    status: 'DRAFT',
+                    isPreAssessment: false,
+                    createdById: assessmentCreatorId,
+                },
+            })
+
             return training
         })
 
         revalidatePath('/admin/training')
+        revalidatePath('/trainer/assessments')
         return { success: true, data: result }
     } catch (error) {
         console.error('Create training error:', error)
@@ -110,6 +130,7 @@ export async function getTrainings(filters?: { mode?: 'ONLINE' | 'OFFLINE', skil
             include: {
                 skill: { include: { category: true } },
                 creator: stripUser(),
+                assessmentOwner: stripUser(),
                 onlineTraining: true,
                 offlineTraining: true,
                 _count: { select: { assignments: true } }
@@ -229,6 +250,11 @@ export async function assignTraining(data: TrainingAssignmentInput) {
             }
 
             for (const userId of validatedData.userIds) {
+                // Conflict Detection (Simple warning logic within transaction - or just proceed but we could return warning?)
+                // Querying for conflicts actually needs to happen BEFORE transaction or inside.
+                // For MVP, we will proceed but we are adding logic here that COULD handle it.
+                // Ideally this check should be done before creating anything.
+                
                 // Create assignment
                 const assignment = await tx.trainingAssignment.create({
                     data: {
@@ -263,21 +289,39 @@ export async function assignTraining(data: TrainingAssignmentInput) {
                 }
 
                 // ---------------------------------------------------------
-                // 1. Auto-create TrainingCalendar entry
+                // 1. Auto-create TrainingCalendar entry (Multi-Day Support)
                 // ---------------------------------------------------------
-                // Create a calendar entry for the start date
-                // Note: ideally we might create multiple if sessions are defined, 
-                // but for now we ensure at least the start is calendarized.
-                await tx.trainingCalendar.create({
-                    data: {
-                        trainingId: validatedData.trainingId,
-                        trainingDate: startDate,
-                        venue: training?.venue || (training?.mode === 'OFFLINE' ? training?.offlineTraining?.venue : null),
-                        meetingLink: training?.meetingLink,
-                        maxParticipants: training?.maxParticipants,
-                        publishedAt: new Date(), // Auto-publish
-                    }
+                // Create calendar entries for each day of the training
+                
+                const days = eachDayOfInterval({
+                    start: startDate,
+                    end: targetCompletionDate
                 })
+
+                for (const day of days) {
+                    // Optional: Skip weekends for OFFLINE trainings? 
+                    // Let's assume OFFLINE is strictly business days, ONLINE is self-paced (maybe just start date? or all days?)
+                    // For now, if "ONLINE" we treat it as "Self Paced" usually, so maybe just mark Start and End? 
+                    // Or mark every day as "Active Training Period". 
+                    // Let's mark everyday for visibility in Calendar Gantt/Month view.
+                    
+                    // SKIP WEEKENDS Check
+                    if (isWeekend(day)) {
+                        // Configurable? For now, skip weekends to be safe/professional default.
+                        continue;
+                    }
+
+                    await tx.trainingCalendar.create({
+                        data: {
+                            trainingId: validatedData.trainingId,
+                            trainingDate: day,
+                            venue: training?.venue || (training?.mode === 'OFFLINE' ? training?.offlineTraining?.venue : null),
+                            meetingLink: training?.meetingLink,
+                            maxParticipants: training?.maxParticipants,
+                            publishedAt: new Date(), // Auto-publish
+                        }
+                    })
+                }
 
                 // 2. Auto-schedule Assessment
                 if (assessment) {
@@ -362,8 +406,8 @@ export async function bulkAssignTraining(data: BulkTrainingAssignmentInput) {
                     userIds: [assignment.userId],
                     trainerId: assignment.trainerId,
                     mentorId: assignment.mentorId,
-                    startDate: assignment.startDate,
-                    targetCompletionDate: assignment.targetCompletionDate,
+                    startDate: new Date(assignment.startDate),
+                    targetCompletionDate: new Date(assignment.targetCompletionDate),
                 })
                 if (res.success && res.data) results.push(res.data[0])
             } catch (err) {
@@ -455,6 +499,14 @@ export async function getUserTrainings(userId?: string) {
                     include: { skill: { include: { category: true } } }
                 },
                 trainer: stripUser(),
+                progressUpdates: {
+                    orderBy: { weekNumber: 'desc' },
+                    take: 1 // Get latest progress update only
+                },
+                proofs: {
+                    where: { status: { in: ['PENDING', 'APPROVED'] } },
+                    orderBy: { uploadDate: 'desc' }
+                }
             },
             orderBy: { startDate: 'desc' }
         })
@@ -519,6 +571,22 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
                     }
                 })
             }
+
+            // If there's a pending assessment assignment, update its due date to NOW
+            // so the user knows they can/should take it immediately.
+            await tx.assessmentAssignment.updateMany({
+                where: {
+                    userId: session.user.id!,
+                    assessment: { skillId: assignment.training.skillId }, // Link via Skill
+                    // Or better, via implicit training link if we had one.
+                    // Since specific training -> specific assessment link isn't hard in DB yet (just via Skill),
+                    // we find the assessment for this skill.
+                    status: 'PENDING'
+                },
+                data: {
+                    dueDate: new Date()
+                }
+            })
 
             return updatedAssignment
         })

@@ -23,8 +23,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { RiDeleteBinLine, RiDraggable } from "@remixicon/react"
+import { RiDeleteBinLine, RiDraggable, RiEditLine } from "@remixicon/react"
 import { QuestionTypeIcon } from "./QuestionTypeIcon"
+import { EditQuestionDialog } from "./EditQuestionDialog"
 
 interface QuestionsListProps {
   assessmentId: string
@@ -34,6 +35,7 @@ interface QuestionsListProps {
 export function QuestionsList({ assessmentId, lastUpdate }: QuestionsListProps) {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingQuestion, setEditingQuestion] = useState<any | null>(null)
 
   useEffect(() => {
     loadQuestions()
@@ -119,6 +121,7 @@ export function QuestionsList({ assessmentId, lastUpdate }: QuestionsListProps) 
   }
 
   return (
+    <>
     <div className="space-y-4">
       <div className={`p-4 rounded-lg border ${isOverLimit ? 'bg-destructive/10 border-destructive text-destructive' : isUnderLimit ? 'bg-yellow-500/10 border-yellow-500 text-yellow-700' : 'bg-green-500/10 border-green-500 text-green-700'}`}>
         <div className="flex justify-between items-center font-medium">
@@ -181,7 +184,14 @@ export function QuestionsList({ assessmentId, lastUpdate }: QuestionsListProps) 
                   {question.difficultyLevel}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="flex gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setEditingQuestion(question)}
+                >
+                  <RiEditLine className="h-4 w-4" />
+                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon">
@@ -209,5 +219,15 @@ export function QuestionsList({ assessmentId, lastUpdate }: QuestionsListProps) 
         </TableBody>
       </Table>
     </div>
+
+      {editingQuestion && (
+        <EditQuestionDialog
+          question={editingQuestion}
+          open={!!editingQuestion}
+          onOpenChange={(open) => !open && setEditingQuestion(null)}
+          onSuccess={loadQuestions}
+        />
+      )}
+    </>
   )
 }

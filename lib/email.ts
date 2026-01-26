@@ -17,8 +17,105 @@ interface SendVerificationRequestParams {
 export interface SendEmailParams {
   to: string
   subject: string
-  template: 'training-assigned' | 'general'
+  template: 'training-assigned' | 'calendar-updated' | 'assessment-due' | 'general'
   data: any
+}
+
+function getTemplate(template: string, data: any) {
+  const header = `
+     <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f9fafb; margin: 0; padding: 20px; color: #1f2937; }
+            .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+            .header { background: #1f2937; padding: 20px; text-align: center; }
+            .header h1 { color: #ffffff; margin: 0; font-size: 24px; }
+            .content { padding: 30px; }
+            .button { display: inline-block; background: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 20px; }
+            .footer { padding: 20px; text-align: center; font-size: 12px; color: #6b7280; background: #f3f4f6; }
+            .info-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            .info-table td { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+            .label { font-weight: 600; color: #4b5563; width: 120px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+                <h1>Skill Loop</h1>
+            </div>
+            <div class="content">
+    `;
+
+  const footer = `
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Skill Loop. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+    `;
+
+  let body = '';
+
+  if (template === 'training-assigned') {
+    body = `
+            <h2>New Training Assigned</h2>
+            <p>Hello ${data.userName},</p>
+            <p>You have been assigned to a new training session. Please mark your calendar.</p>
+            
+            <table class="info-table">
+                <tr><td class="label">Topic:</td><td>${data.trainingName}</td></tr>
+                <tr><td class="label">Mode:</td><td>${data.mode}</td></tr>
+                <tr><td class="label">Start Date:</td><td>${data.startDate}</td></tr>
+                <tr><td class="label">End Date:</td><td>${data.completionDate}</td></tr>
+                <tr><td class="label">Duration:</td><td>${data.duration} hours</td></tr>
+            </table>
+
+            <p>An assessment has been scheduled for the completion date.</p>
+
+            <div style="text-align: center;">
+                <a href="${process.env.NEXTAUTH_URL}/employee/calendar" class="button">View in Calendar</a>
+            </div>
+        `;
+  } else if (template === 'calendar-updated') {
+    body = `
+            <h2>Schedule Update</h2>
+            <p>Hello ${data.userName},</p>
+            <p>The schedule for <strong>${data.trainingName}</strong> has been updated.</p>
+            
+             <table class="info-table">
+                <tr><td class="label">New Date:</td><td>${data.newDate}</td></tr>
+                <tr><td class="label">Venue/Link:</td><td>${data.newLocation}</td></tr>
+            </table>
+
+            <div style="text-align: center;">
+                 <a href="${process.env.NEXTAUTH_URL}/employee/calendar" class="button">Check Updated Schedule</a>
+            </div>
+        `;
+  } else if (template === 'assessment-due') {
+    body = `
+             <h2>Assessment Due Reminder</h2>
+            <p>Hello ${data.userName},</p>
+            <p>This is a reminder that you have an assessment due today for <strong>${data.trainingName}</strong>.</p>
+            
+            <div style="text-align: center;">
+                 <a href="${process.env.NEXTAUTH_URL}/employee/assessments" class="button">Take Assessment</a>
+            </div>
+        `;
+  } else {
+    body = `
+            <h2>Notification</h2>
+            <p>${data.message || 'You have a new notification.'}</p>
+             <div style="text-align: center;">
+                 <a href="${process.env.NEXTAUTH_URL}" class="button">Go to Dashboard</a>
+            </div>
+        `;
+  }
+
+  return header + body + footer;
 }
 
 export async function sendEmail({ to, subject, template, data }: SendEmailParams) {
@@ -30,14 +127,8 @@ export async function sendEmail({ to, subject, template, data }: SendEmailParams
   const from = process.env.EMAIL_FROM || 'noreply@skillloop.com'
 
   // Simple template logic for now
-  const htmlBody = `
-        <div style="font-family: sans-serif; padding: 20px;">
-            <h2>${subject}</h2>
-            <p>Hello,</p>
-            <p>${data.message || 'You have a new notification.'}</p>
-            <p>Click <a href="${process.env.NEXTAUTH_URL}">here</a> to login.</p>
-        </div>
-    `
+  // Use template engine
+  const htmlBody = getTemplate(template, data);
 
   try {
     await transport.sendMail({

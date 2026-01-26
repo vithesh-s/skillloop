@@ -20,7 +20,7 @@ export default async function EmployeeDashboard() {
   const userId = user.id;
 
   // Fetch dashboard data
-  const [skillMatrixData, assessmentData, trainingData, skills] = await Promise.all([
+  const [skillMatrixData, assessmentData, trainingData, skills, ownedTrainings] = await Promise.all([
     prisma.skillMatrix.findMany({
       where: { userId },
       select: {
@@ -81,6 +81,14 @@ export default async function EmployeeDashboard() {
         category: true,
       },
       orderBy: { name: 'asc' }
+    }),
+    prisma.training.findMany({
+      where: {
+        assessmentOwnerId: userId
+      },
+      select: {
+        id: true
+      }
     })
   ]);
 
@@ -90,6 +98,7 @@ export default async function EmployeeDashboard() {
   const skillsWithGaps = totalSkills - completedSkills;
   const completedAssessments = assessmentData.length;
   const activeTrainings = trainingData.length;
+  const assessmentDuties = ownedTrainings.length;
   
   // Calculate overall progress
   const overallProgress = totalSkills > 0 
@@ -150,16 +159,20 @@ export default async function EmployeeDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Progress</CardTitle>
-            <RiBarChartLine className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{overallProgress}%</div>
-            <p className="text-xs text-muted-foreground">Overall completion</p>
-          </CardContent>
-        </Card>
+        <Link href="/employee/assessment-duties" className={assessmentDuties > 0 ? '' : 'opacity-60'}>
+          <Card className={assessmentDuties > 0 ? 'border-blue-200 bg-blue-50/30 hover:shadow-md transition-shadow cursor-pointer' : ''}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Assessment Duties</CardTitle>
+              <RiBarChartLine className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{assessmentDuties}</div>
+              <p className="text-xs text-muted-foreground">
+                {assessmentDuties > 0 ? 'Trainings to assess' : 'No duties assigned'}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Main Content */}
@@ -242,7 +255,7 @@ export default async function EmployeeDashboard() {
               <Button variant="outline" className="w-full h-auto flex-col items-start p-4 gap-2">
                 <RiBarChartLine className="h-5 w-5" />
                 <div className="text-left">
-                  <p className="font-semibold">View Skill Gaps</p>
+                  <p className="font-semibold">View My Skills</p>
                   <p className="text-xs text-muted-foreground">Track your progress</p>
                 </div>
               </Button>

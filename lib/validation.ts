@@ -288,6 +288,7 @@ export const trainingSchema = z.object({
     mode: z.enum(['ONLINE', 'OFFLINE']),
     duration: z.coerce.number().min(1, 'Duration must be at least 1 hour'),
     skillId: z.string().min(1, 'Skill is required'),
+    assessmentOwnerId: z.string().min(1, 'Assessment owner is required'),
     resources: z.array(z.object({ title: z.string().optional(), url: z.string().url().optional(), type: z.string().optional() })).optional(), // stored as JSON
     venue: z.string().optional(),
     meetingLink: z.string().url().optional().or(z.literal('')),
@@ -472,3 +473,48 @@ export function formDataToObject(formData: FormData): Record<string, any> {
 
     return obj
 }
+
+// ============================================================================
+// PROGRESS TRACKING VALIDATION SCHEMAS
+// ============================================================================
+
+export const progressUpdateSchema = z.object({
+    assignmentId: z.string().min(1, 'Assignment ID is required'),
+    weekNumber: z.number().int().min(1).max(52, 'Week number must be between 1 and 52'),
+    completionPercentage: z.number().min(0).max(100, 'Completion percentage must be between 0 and 100'),
+    topicsCovered: z.string().optional(),
+    timeSpent: z.number().min(0).optional(),
+    challenges: z.string().optional(),
+    nextPlan: z.string().optional(),
+    updateDate: z.date().refine((date) => date <= new Date(), {
+        message: 'Update date cannot be in the future'
+    })
+})
+
+export type ProgressUpdateInput = z.infer<typeof progressUpdateSchema>
+
+export const proofSubmissionSchema = z.object({
+    assignmentId: z.string().min(1, 'Assignment ID is required'),
+    fileName: z.string().min(1, 'File name is required'),
+    filePath: z.string().url('File path must be a valid URL'),
+    description: z.string().optional()
+})
+
+export type ProofSubmissionInput = z.infer<typeof proofSubmissionSchema>
+
+export const proofReviewSchema = z.object({
+    proofId: z.string().min(1, 'Proof ID is required'),
+    status: z.enum(['APPROVED', 'REJECTED'], {
+        required_error: 'Status is required'
+    }),
+    reviewerComments: z.string().optional()
+})
+
+export type ProofReviewInput = z.infer<typeof proofReviewSchema>
+
+export const mentorCommentSchema = z.object({
+    progressId: z.string().min(1, 'Progress ID is required'),
+    comment: z.string().min(1, 'Comment cannot be empty').max(1000, 'Comment is too long (max 1000 characters)')
+})
+
+export type MentorCommentInput = z.infer<typeof mentorCommentSchema>

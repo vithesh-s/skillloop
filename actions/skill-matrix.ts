@@ -363,6 +363,16 @@ export async function createSkillMatrixEntry(
   }
 
   try {
+    // Check if user exists in the database
+    const userExists = await prisma.user.findUnique({
+      where: { id: validated.userId },
+    });
+
+    if (!userExists) {
+      return { success: false, message: "User does not exist" };
+    }
+
+    // Check if skill matrix entry already exists
     const existing = await prisma.skillMatrix.findUnique({
       where: {
         userId_skillId: {
@@ -420,11 +430,23 @@ export async function addUserSkill(
     const validated = addUserSkillSchema.parse(data)
     const userId = session.user.id
 
-    // Convert numeric levels to CompetencyLevel enum
+    // Verify user exists in database
+    const userExists = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true }
+    })
+
+    if (!userExists) {
+      console.error('User not found in database:', userId)
+      return { success: false, message: "User account not found. Please log in again." }
+    }
+
+    // Convert numeric levels (1-5) to CompetencyLevel enum (4 levels)
+    // Mapping: 1=BEGINNER, 2=BEGINNER/INTERMEDIATE, 3=INTERMEDIATE, 4=ADVANCED, 5=EXPERT
     const levelMapping: Record<number, CompetencyLevel> = {
       1: 'BEGINNER',
-      2: 'BEGINNER',
-      3: 'INTERMEDIATE',
+      2: 'INTERMEDIATE',  // "Basic" maps to INTERMEDIATE
+      3: 'INTERMEDIATE',  // "Intermediate" 
       4: 'ADVANCED',
       5: 'EXPERT',
     }
@@ -494,9 +516,10 @@ export async function addUserSkill(
       return { success: false, message: "This skill is already in your skill matrix" }
     }
 
-    // Calculate gap percentage
-    const gapPercentage = calculateGapPercentageInternal(desiredLevel, currentLevel)
-    const status = gapPercentage === 0 ? 'completed' : 'gap_identified'
+    // When employee adds their own skill, no gap calculation
+    // Gap percentage is only relevant for role-assigned skills
+    const gapPercentage = 0
+    const status = 'personal_goal'
 
     // Create skill matrix entry
     const entry = await prisma.skillMatrix.create({
@@ -517,11 +540,19 @@ export async function addUserSkill(
 
     return {
       success: true,
-      message: `Skill added successfully! ${gapPercentage > 0 ? `Gap identified: ${gapPercentage}%` : 'No gap - you\'re at your desired level!'}`,
+      message: 'Skill added successfully to your personal development goals!',
       skillMatrixId: entry.id
     }
   } catch (error) {
     console.error('Error adding user skill:', error)
+    console.error('Session user ID:', session.user.id)
+    
+    // Check for foreign key constraint errors
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2003') {
+      console.error('Foreign key constraint violation - userId may not exist in User table')
+      return { success: false, message: "Your user account could not be found. Please log out and log in again." }
+    }
+    
     if (error instanceof Error) {
       return { success: false, message: error.message }
     }
@@ -557,18 +588,28 @@ export async function updateDesiredLevel(
       throw new Error("Skill matrix entry not found")
     }
 
-    const newGapPercentage = calculateGapPercentageInternal(validated.desiredLevel, entry.currentLevel)
-    const gapCategory = await categorizeGap(newGapPercentage)
+    // Check if this is a personal goal - if so, preserve the status and don't calculate gap
+    const isPersonalGoal = entry.status === 'personal_goal'
 
-    const hasTraining = await prisma.trainingAssignment.count({
-      where: {
-        userId: validated.userId,
-        training: { skillId: validated.skillId },
-        status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
-      }
-    }) > 0
+    let newGapPercentage: number
+    let newStatus: string
 
-    const newStatus = determineStatus(newGapPercentage, hasTraining)
+    if (isPersonalGoal) {
+      // Personal goals don't have gap calculations
+      newGapPercentage = 0
+      newStatus = 'personal_goal'
+    } else {
+      // For role-assigned skills, calculate gap normally
+      newGapPercentage = calculateGapPercentageInternal(validated.desiredLevel, entry.currentLevel)
+      const hasTraining = await prisma.trainingAssignment.count({
+        where: {
+          userId: validated.userId,
+          training: { skillId: validated.skillId },
+          status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+        }
+      }) > 0
+      newStatus = determineStatus(newGapPercentage, hasTraining)
+    }
 
     await prisma.skillMatrix.update({
       where: { id: entry.id },
@@ -1001,9 +1042,13 @@ export async function generateOrganizationTNA(
     throw new Error("Unauthorized")
   }
 
-  if (!session.user.systemRoles?.includes('ADMIN')) {
-    throw new Error("Forbidden: Admin access required")
+  const isAdmin = session.user.systemRoles?.includes('ADMIN')
+  const isManager = session.user.systemRoles?.includes('MANAGER')
+
+  if (!isAdmin && !isManager) {
+    throw new Error("Forbidden: Admin or Manager access required")
   }
+
 
   try {
     const validatedFilters = filters ? tnaFilterSchema.parse(filters) : null
@@ -1011,6 +1056,8 @@ export async function generateOrganizationTNA(
     const userWhere: Prisma.UserWhereInput = {
       ...(validatedFilters?.department && { department: validatedFilters.department }),
       ...(validatedFilters?.roleId && { roleId: validatedFilters.roleId }),
+      // If Manager (and not Admin), modify query to only show reporting employees
+      ...(!isAdmin && isManager && { managerId: session.user.id }),
     }
 
     const skillMatrixWhere: Prisma.SkillMatrixWhereInput = {

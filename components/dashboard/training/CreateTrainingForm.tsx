@@ -38,16 +38,20 @@ import { RiLoader4Line } from '@remixicon/react'
 // We manually construct because simple intersection might be tricky with partials in Zod
 type TrainingFormData = TrainingInput & { 
     online?: OnlineTrainingInput, 
-    offline?: OfflineTrainingInput 
+    offline?: OfflineTrainingInput,
+    assessmentOwnerId?: string
 }
 
 interface CreateTrainingFormProps {
     skills: { id: string; name: string; category: { name: string } }[]
-    trainers: { id: string; name: string; email: string }[]
+    trainers: { id: string; name: string; email: string; department: string | null; systemRoles: string[] | null }[]
+    departments: string[]
+    userRole: 'admin' | 'manager' | 'trainer'
 }
 
-export function CreateTrainingForm({ skills, trainers }: CreateTrainingFormProps) {
+export function CreateTrainingForm({ skills, trainers, departments, userRole }: CreateTrainingFormProps) {
     const [isPending, startTransition] = useTransition()
+    const [selectedDepartment, setSelectedDepartment] = useState<string>('all')
     const router = useRouter()
     
     const form = useForm<TrainingFormData>({
@@ -68,7 +72,8 @@ export function CreateTrainingForm({ skills, trainers }: CreateTrainingFormProps
                 materials: [],
                 trainerIds: [],
                 venue: ''
-            }
+            },
+            assessmentOwnerId: ''
         }
     })
 
@@ -84,6 +89,7 @@ export function CreateTrainingForm({ skills, trainers }: CreateTrainingFormProps
                     mode: data.mode,
                     duration: data.duration,
                     skillId: data.skillId,
+                    assessmentOwnerId: data.assessmentOwnerId || undefined,
                 }
 
                 // Add mode-specific data
@@ -121,7 +127,8 @@ export function CreateTrainingForm({ skills, trainers }: CreateTrainingFormProps
                 const result = await createTraining(trainingData)
                 if (result.success) {
                     toast.success('Training created successfully!')
-                    router.push('/admin/training')
+                    const redirectPath = userRole === 'manager' ? '/manager/training' : '/admin/training'
+                    router.push(redirectPath)
                     router.refresh()
                 } else {
                     toast.error(result.error || 'Failed to create training')
@@ -134,11 +141,11 @@ export function CreateTrainingForm({ skills, trainers }: CreateTrainingFormProps
     }
 
     return (
-        <div className="container mx-auto p-6 max-w-5xl">
+        <div className="container mx-auto py-6 max-w-5xl">
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     {/* Header */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-2">
                         <div className="space-y-1">
                             <h1 className="text-3xl font-bold tracking-tight">Create New Training</h1>
                             <p className="text-muted-foreground">
@@ -268,32 +275,111 @@ export function CreateTrainingForm({ skills, trainers }: CreateTrainingFormProps
                                     )}
                                 />
                             </div>
+
+                            {/* Department Filter & Assessment Owner */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Department Filter for Assessment Owner */}
+                                <div>
+                                    <FormLabel>Department Filter</FormLabel>
+                                    <Select onValueChange={setSelectedDepartment} value={selectedDepartment}>
+                                        <SelectTrigger className="mt-2">
+                                            <SelectValue placeholder="All Departments" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Departments</SelectItem>
+                                            {departments.map((dept) => (
+                                                <SelectItem key={dept} value={dept}>
+                                                    {dept}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription className="mt-2">
+                                        Filter trainers by department
+                                    </FormDescription>
+                                </div>
+
+                                {/* Assessment Owner Selection */}
+                                <FormField
+                                    control={form.control}
+                                    name="assessmentOwnerId"
+                                    render={({ field }) => {
+                                        const filteredTrainers = selectedDepartment === 'all' 
+                                            ? trainers 
+                                            : trainers.filter(t => t.department === selectedDepartment)
+                                        
+                                        return (
+                                            <FormItem>
+                                                <FormLabel>Assessment Owner (Trainer/Mentor)</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select who will create the assessment" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent className="max-h-[300px]">
+                                                        {filteredTrainers.length === 0 ? (
+                                                            <div className="p-2 text-sm text-muted-foreground text-center">
+                                                                No trainers found in this department
+                                                            </div>
+                                                        ) : (
+                                                            filteredTrainers.map((trainer) => (
+                                                                <SelectItem key={trainer.id} value={trainer.id}>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span>{trainer.name}</span>
+                                                                        {trainer.systemRoles && trainer.systemRoles.length > 0 && (
+                                                                            <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                                                                                {trainer.systemRoles[0]}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="text-muted-foreground text-xs block">
+                                                                        {trainer.email}{trainer.department ? ` • ${trainer.department}` : ''}
+                                                                    </span>
+                                                                </SelectItem>
+                                                            ))
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormDescription>
+                                                    This person will be responsible for adding assessment questions
+                                                </FormDescription>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )
+                                    }}
+                                />
+                            </div>
                         </CardContent>
                     </Card>
 
                     {/* Mode-Specific Configuration */}
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                            <div className="h-px flex-1 bg-border" />
-                            <span className="text-sm text-muted-foreground font-medium">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
                                 {mode === 'ONLINE' ? 'Online Training Configuration' : 'Offline Training Configuration'}
-                            </span>
-                            <div className="h-px flex-1 bg-border" />
-                        </div>
-
-                        <Tabs value={mode} className="w-full">
-                            <TabsContent value="ONLINE" className="mt-0">
-                                <OnlineTrainingForm form={form} />
-                            </TabsContent>
-                            <TabsContent value="OFFLINE" className="mt-0">
-                                <OfflineTrainingForm form={form} trainers={trainers} />
-                            </TabsContent>
-                        </Tabs>
-                    </div>
+                            </CardTitle>
+                            <CardDescription>
+                                {mode === 'ONLINE' 
+                                    ? 'Configure resources and mentor requirements' 
+                                    : 'Set up schedule, trainers, and venue details'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Tabs value={mode} className="w-full">
+                                <TabsContent value="ONLINE" className="mt-0">
+                                    <OnlineTrainingForm form={form} />
+                                </TabsContent>
+                                <TabsContent value="OFFLINE" className="mt-0">
+                                    <OfflineTrainingForm form={form} trainers={trainers} />
+                                </TabsContent>
+                            </Tabs>
+                        </CardContent>
+                    </Card>
                     
                     {/* Action Buttons */}
-                    <div className="flex justify-end gap-4 pt-6 border-t">
-                        <Button type="button" variant="outline" onClick={() => router.back()}>
+                    <div className="flex justify-end gap-6">
+                        <Button type="button" variant="outline" onClick={() => router.back()} size="lg">
                             Cancel
                         </Button>
                         <Button type="submit" disabled={isPending} size="lg">

@@ -316,6 +316,12 @@ export async function getAssessments(params?: {
         where,
         include: {
           skill: true,
+          creator: {
+            select: {
+              name: true,
+              email: true
+            }
+          },
           _count: {
             select: {
               questions: true,
@@ -405,7 +411,7 @@ export async function addQuestion(
   const validatedFields = questionSchema.safeParse({
     skillId: formData.get("skillId"),
     questionText: formData.get("questionText"),
-    questionType: formData.get("questionType"),
+    questionType: formData.get("questionType") as "MCQ" | "DESCRIPTIVE" | "TRUE_FALSE" | "FILL_BLANK",
     options,
     correctAnswer: formData.get("correctAnswer") || undefined,
     marks: formData.get("marks"),
@@ -1555,11 +1561,11 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
           } else if (attempt.status === "completed" || attempt.status === "grading") {
             // Count descriptive questions and how many are graded
             const descriptiveAnswers = attempt.answers.filter(
-              a => a.question.questionType === "DESCRIPTIVE"
+              (a: any) => a.question.questionType === "DESCRIPTIVE"
             )
             descriptiveQuestionsCount = descriptiveAnswers.length
             gradedQuestionsCount = descriptiveAnswers.filter(
-              a => a.marksAwarded !== null
+              (a: any) => a.marksAwarded !== null
             ).length
 
             if (descriptiveQuestionsCount > gradedQuestionsCount) {

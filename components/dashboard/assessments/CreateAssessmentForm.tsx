@@ -30,6 +30,7 @@ type SkillWithCategory = Skill & { category: SkillCategory }
 interface CreateAssessmentFormProps {
   skills: SkillWithCategory[]
   initialAssessment?: any
+  basePath?: string
 }
 
 const initialState = {
@@ -38,7 +39,7 @@ const initialState = {
   success: false,
 }
 
-export function CreateAssessmentForm({ skills, initialAssessment }: CreateAssessmentFormProps) {
+export function CreateAssessmentForm({ skills, initialAssessment, basePath = '/admin/assessments' }: CreateAssessmentFormProps) {
   const [step, setStep] = useState(initialAssessment ? 2 : 1)
   const [assessmentId, setAssessmentId] = useState<string | null>(initialAssessment?.id || null)
   const [isPreAssessment, setIsPreAssessment] = useState(initialAssessment?.isPreAssessment || false)
@@ -61,7 +62,7 @@ export function CreateAssessmentForm({ skills, initialAssessment }: CreateAssess
   useEffect(() => {
     if (state.success && state.data?.assessmentId && !assessmentId) {
       // Redirect to edit page to prevent state loss on refresh/navigation
-      router.push(`/admin/assessments/${state.data.assessmentId}/edit`)
+      router.push(`${basePath}/${state.data.assessmentId}/edit`)
     }
   }, [state, assessmentId, router])
 
@@ -70,7 +71,7 @@ export function CreateAssessmentForm({ skills, initialAssessment }: CreateAssess
 
     const result = await publishAssessment(assessmentId)
     if (result.success) {
-      router.push("/admin/assessments")
+      router.push(basePath)
     }
   }
 

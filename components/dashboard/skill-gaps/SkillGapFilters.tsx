@@ -57,7 +57,7 @@ export function SkillGapFilters() {
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="py-0">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <Button 

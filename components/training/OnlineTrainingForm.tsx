@@ -35,47 +35,56 @@ export function OnlineTrainingForm({ form }: OnlineTrainingFormProps) {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                    control={form.control}
-                    name="online.estimatedDuration"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Estimated Duration (Hours)</FormLabel>
-                            <FormControl>
-                                <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} />
-                            </FormControl>
-                            <FormDescription>
-                                Total time expected to complete all resources
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+            <Card>
+                <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        <FormField
+                            control={form.control}
+                            name="online.estimatedDuration"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-sm font-medium">Estimated Duration (Hours)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} className="w-full" />
+                                    </FormControl>
+                                    <FormDescription className="text-sm text-muted-foreground">
+                                        Total time expected to complete all resources
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                <FormField
-                    control={form.control}
-                    name="online.mentorRequired"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-                            <FormControl>
-                                <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                                <FormLabel>
-                                    Require Mentor
-                                </FormLabel>
-                                <FormDescription>
-                                    Learners will need a mentor assigned for this training
-                                </FormDescription>
-                            </div>
-                        </FormItem>
-                    )}
-                />
-            </div>
+                        <FormField
+                            control={form.control}
+                            name="online.mentorRequired"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-sm font-medium">Mentor Assignment</FormLabel>
+                                    <div className="flex items-center space-x-3 rounded-md border p-4 bg-muted/30">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                className="mt-0.5"
+                                            />
+                                        </FormControl>
+                                        <div className="space-y-1">
+                                            <FormLabel className="font-medium cursor-pointer">
+                                                Require Mentor
+                                            </FormLabel>
+                                            <FormDescription className="text-sm text-muted-foreground">
+                                                Learners will need a mentor assigned for this training
+                                            </FormDescription>
+                                        </div>
+                                    </div>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

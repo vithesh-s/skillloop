@@ -58,7 +58,7 @@ export function generateQuestionTemplate(): string {
  * Parse CSV file and return array of question objects
  * Handles UTF-8 encoding and various CSV formats
  */
-export async function parseQuestionCSV(file: File): Promise<QuestionFormData[]> {
+export async function parseQuestionCSV(file: File): Promise<Omit<QuestionFormData, 'skillId'>[]> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader()
 
@@ -70,7 +70,7 @@ export async function parseQuestionCSV(file: File): Promise<QuestionFormData[]> 
                 // Skip header row
                 const dataLines = lines.slice(1)
 
-                const questions: QuestionFormData[] = []
+                const questions: Omit<QuestionFormData, 'skillId'>[] = []
 
                 for (const line of dataLines) {
                     const row = parseCSVLine(line)
@@ -124,7 +124,7 @@ function parseCSVLine(line: string): string[] {
 /**
  * Parse and validate a single CSV row into a question object
  */
-function parseQuestionRow(row: string[]): QuestionFormData | null {
+function parseQuestionRow(row: string[]): Omit<QuestionFormData, 'skillId'> | null {
     if (row.length < 6) {
         console.warn('Skipping invalid row: insufficient columns (expected: questionText, questionType, options, correctAnswer, marks, difficultyLevel)')
         return null
@@ -153,9 +153,9 @@ function parseQuestionRow(row: string[]): QuestionFormData | null {
         return null
     }
 
-    const questionData: QuestionFormData = {
+    const questionData: Omit<QuestionFormData, 'skillId'> = {
         questionText: questionText.trim(),
-        questionType: questionType.trim() as 'MCQ' | 'DESCRIPTIVE' | 'TRUE_FALSE' | 'FILL_BLANK',
+        questionType: questionType.trim() as unknown as 'MCQ' | 'DESCRIPTIVE' | 'TRUE_FALSE' | 'FILL_BLANK',
         options: options && options.length > 0 ? options : undefined,
         correctAnswer: correctAnswer?.trim() || undefined,
         marks,
@@ -168,8 +168,8 @@ function parseQuestionRow(row: string[]): QuestionFormData | null {
 /**
  * Validate a single question row against the schema
  */
-export function validateQuestionRow(question: QuestionFormData): { success: boolean; error?: string } {
-    const result = questionSchema.safeParse(question)
+export function validateQuestionRow(question: Omit<QuestionFormData, 'skillId'>): { success: boolean; error?: string } {
+    const result = questionSchema.safeParse({ ...question, skillId: 'temp_validation_id' })
 
     if (result.success) {
         return { success: true }

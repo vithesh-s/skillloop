@@ -35,7 +35,7 @@ export function OrganizationGapChart({ departmentBreakdown }: OrganizationGapCha
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={360}>
       <BarChart
         data={chartData}
         margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
@@ -45,7 +45,7 @@ export function OrganizationGapChart({ departmentBreakdown }: OrganizationGapCha
           dataKey="department" 
           angle={-45}
           textAnchor="end"
-          height={80}
+          height={60}
           interval={0}
         />
         <YAxis 
