@@ -14,10 +14,12 @@ import {
   resumeJourney,
   linkAssessmentToPhase,
   linkTrainingToPhase,
+} from "@/lib/journey-engine";
+import {
   PhaseConfig,
   DEFAULT_NEW_EMPLOYEE_PHASES,
   DEFAULT_EXISTING_EMPLOYEE_PHASES,
-} from "@/lib/journey-engine";
+} from "@/lib/journey-constants";
 import {
   EmployeeType,
   JourneyStatus,

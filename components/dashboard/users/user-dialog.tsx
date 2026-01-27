@@ -39,10 +39,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RiLoader4Line, RiArrowDownSLine, RiCheckLine, RiCloseLine, RiErrorWarningLine } from "@remixicon/react";
 import { PhaseConfigBuilder } from "@/components/journeys/PhaseConfigBuilder";
-import { DEFAULT_NEW_EMPLOYEE_PHASES, DEFAULT_EXISTING_EMPLOYEE_PHASES } from "@/lib/journey-engine";
+import { DEFAULT_NEW_EMPLOYEE_PHASES, DEFAULT_EXISTING_EMPLOYEE_PHASES, type PhaseConfig } from "@/lib/journey-constants";
 import type { PhaseType } from "@prisma/client";
 import { toast } from "sonner";
-import type { PhaseConfig } from "@/lib/journey-engine";
 
 interface User {
   id: string;
