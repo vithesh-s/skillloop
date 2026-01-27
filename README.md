@@ -476,21 +476,256 @@ JourneyPhase
 
 ## 🔐 Authentication & Security
 
-## Project Structure
+## 🔐 Authentication & Security
+
+### Authentication Flow
+
+```
+1. User Login
+   ├── Email + Password validation
+   ├── OTP generation & email
+   ├── OTP verification (6-digit)
+   └── JWT session creation
+
+2. Session Management
+   ├── JWT stored in HTTP-only cookie
+   ├── 30-day session duration
+   ├── Automatic refresh
+   └── Secure logout
+
+3. Authorization
+   ├── Role-based access control (RBAC)
+   ├── Route protection middleware
+   ├── Server action authorization
+   └── API route guards
+```
+
+### Security Features
+
+- **Password Security**: Bcrypt hashing
+- **OTP System**: Time-limited one-time passwords
+- **CSRF Protection**: Built-in Next.js protection
+- **SQL Injection Prevention**: Prisma ORM parameterized queries
+- **XSS Prevention**: React auto-escaping
+- **Role Validation**: Server-side on every request
+- **File Upload Security**: UploadThing with validation
+
+## 🗂️ Project Structure
 
 ```
 skillloop/
-├── app/                    # Next.js app router pages
-├── components/            # React components
-│   └── ui/               # shadcn/ui components
-├── lib/                  # Utility libraries
-│   ├── db.ts            # Prisma database client
-│   ├── prisma.ts        # Prisma client with adapter
-│   └── utils.ts         # Helper functions
-├── prisma/              # Database schema and migrations
-│   ├── schema.prisma    # Database schema (19 models)
-│   ├── seed.ts          # Database seeding script
-│   └── migrations/      # Database migrations
+├── app/                           # Next.js App Router
+│   ├── (auth)/                    # Authentication routes
+│   │   ├── login/                 # Login page
+│   │   └── layout.tsx             # Auth layout
+│   │
+│   ├── (dashboard)/               # Protected dashboard routes
+│   │   ├── layout.tsx             # Dashboard layout with sidebar
+│   │   ├── admin/                 # Admin-only routes
+│   │   │   ├── page.tsx           # Admin dashboard
+│   │   │   ├── users/             # User management
+│   │   │   │   ├── page.tsx       # User list
+│   │   │   │   ├── create/        # Create user
+│   │   │   │   └── [id]/          # User details & journey
+│   │   │   ├── skills/            # Skills catalog
+│   │   │   ├── assessments/       # Assessment management
+│   │   │   ├── training/          # Training management
+│   │   │   ├── roles/             # Role assignments
+│   │   │   └── config/            # System configuration
+│   │   │
+│   │   ├── manager/               # Manager routes
+│   │   │   ├── page.tsx           # Manager dashboard
+│   │   │   ├── team/              # Team management
+│   │   │   ├── assessments/       # Team assessments
+│   │   │   └── training/          # Team training
+│   │   │
+│   │   ├── trainer/               # Trainer routes
+│   │   │   ├── page.tsx           # Trainer dashboard
+│   │   │   ├── training/          # Training delivery
+│   │   │   ├── assessments/       # Assessment grading
+│   │   │   └── feedback/          # Trainee feedback
+│   │   │
+│   │   └── employee/              # Employee self-service
+│   │       ├── page.tsx           # Employee dashboard
+│   │       ├── skills/            # My skills
+│   │       ├── skill-gaps/        # Skill gap analysis
+│   │       ├── assessment-duties/ # Assigned assessments
+│   │       ├── training/          # My training
+│   │       └── progress/          # Progress tracking
+│   │
+│   ├── api/                       # API routes
+│   │   ├── auth/[...nextauth]/    # NextAuth endpoints
+│   │   ├── uploadthing/           # File upload endpoints
+│   │   ├── admin/                 # Admin APIs
+│   │   ├── tna/                   # Training needs analysis
+│   │   └── cron/                  # Scheduled jobs
+│   │
+│   ├── globals.css                # Global styles
+│   ├── layout.tsx                 # Root layout
+│   └── page.tsx                   # Landing page
+│
+├── actions/                       # Server Actions (Business Logic)
+│   ├── assessments.ts             # Assessment CRUD & operations
+│   ├── auth.ts                    # Authentication logic
+│   ├── calendar.ts                # Calendar operations
+│   ├── categories.ts              # Category management
+│   ├── feedback.ts                # Feedback system
+│   ├── journeys.ts                # Employee journey lifecycle
+│   ├── progress.ts                # Progress tracking
+│   ├── proofs.ts                  # Training proof management
+│   ├── roles.ts                   # Role management
+│   ├── skill-matrix.ts            # Skill matrix operations
+│   ├── skill-resources.ts         # Skill resource management
+│   ├── skills.ts                  # Skills CRUD
+│   ├── trainings.ts               # Training CRUD & operations
+│   └── users.ts                   # User management
+│
+├── components/                    # React Components
+│   ├── dashboard/                 # Dashboard-specific components
+│   │   ├── header.tsx             # Dashboard header
+│   │   ├── sidebar.tsx            # Navigation sidebar
+│   │   ├── admin/                 # Admin components
+│   │   ├── assessments/           # Assessment UI components
+│   │   ├── config/                # Configuration components
+│   │   ├── roles/                 # Role management UI
+│   │   ├── skill-gaps/            # Skill gap analysis UI
+│   │   ├── skills/                # Skills management UI
+│   │   ├── tna/                   # TNA components
+│   │   ├── trainer/               # Trainer-specific UI
+│   │   ├── training/              # Training UI components
+│   │   └── users/                 # User management UI
+│   │
+│   ├── journeys/                  # Journey management components
+│   │   ├── ActivityLog.tsx        # Journey activity timeline
+│   │   ├── JourneyTimeline.tsx    # Phase timeline visualization
+│   │   ├── MentorAssignmentDialog.tsx  # Mentor assignment
+│   │   └── PhaseManagementDialog.tsx   # Phase editing
+│   │
+│   ├── training/                  # Training-specific components
+│   │   ├── MentorCommentForm.tsx
+│   │   ├── MentorReviewDashboard.tsx
+│   │   ├── OfflineTrainingForm.tsx
+│   │   ├── OnlineTrainingForm.tsx
+│   │   ├── ProgressStats.tsx
+│   │   └── ProgressTimeline.tsx
+│   │
+│   ├── providers/                 # Context providers
+│   │   ├── session-provider.tsx   # Auth session provider
+│   │   └── theme-provider.tsx     # Theme provider
+│   │
+│   └── ui/                        # shadcn/ui components
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── dialog.tsx
+│       ├── input.tsx
+│       ├── select.tsx
+│       ├── table.tsx
+│       └── ... (30+ components)
+│
+├── lib/                           # Utility Libraries
+│   ├── auth.ts                    # NextAuth configuration
+│   ├── auth-utils.ts              # Auth helper functions
+│   ├── db.ts                      # Database client
+│   ├── prisma.ts                  # Prisma client singleton
+│   ├── email.ts                   # Email service (Nodemailer)
+│   ├── otp.ts                     # OTP generation/validation
+│   ├── ics.ts                     # Calendar file generation
+│   ├── csv-utils.ts               # CSV import/export
+│   ├── uploadthing.ts             # File upload config
+│   ├── utils.ts                   # General utilities
+│   └── validation.ts              # Zod schemas
+│
+├── prisma/                        # Database Layer
+│   ├── schema.prisma              # Database schema (19 models)
+│   ├── migrations/                # Migration history
+│   ├── seed.ts                    # Database seeding script
+│   ├── seed-vithesh-example.ts    # Example user seeding
+│   ├── seed-skill-matrix.ts       # Skills data seeding
+│   ├── check-user.ts              # User verification script
+│   └── README.md                  # Database documentation
+│
+├── types/                         # TypeScript Types
+│   ├── assessment.ts              # Assessment types
+│   ├── skill-matrix.ts            # Skill matrix types
+│   └── next-auth.d.ts             # NextAuth type extensions
+│
+├── hooks/                         # Custom React Hooks
+│   ├── use-mobile.ts              # Mobile detection hook
+│   └── use-session.ts             # Session management hook
+│
+├── Docs/                          # Documentation
+│   ├── AGENT-BRAIN.md             # AI agent instructions
+│   ├── skillloop_prd.md           # Product requirements
+│   ├── LATEST-VERSIONS.md         # Version tracking
+│   ├── SKILL_LOGIC_QUICK_REFERENCE.md
+│   ├── PERSONAL_VS_ASSIGNED_SKILLS.md
+│   └── Phases/                    # Phase documentation
+│
+├── Data/                          # Seed Data
+│   └── Exsisting-employee-dataoseed.json
+│
+├── public/                        # Static Assets
+│
+├── components.json                # shadcn/ui config
+├── next.config.ts                 # Next.js configuration
+├── tsconfig.json                  # TypeScript config
+├── tailwind.config.ts             # Tailwind CSS config
+├── postcss.config.mjs             # PostCSS config
+├── prisma.config.ts               # Prisma configuration
+├── docker-compose.yml             # Docker setup
+└── package.json                   # Dependencies
+```
+
+## 📊 Database Schema (19 Models)
+
+### User Management
+- **User**: Core user model with role hierarchy
+- **Notification**: User notifications system
+
+### Skills & Competency
+- **Skill**: Skills catalog
+- **Category**: Skill categorization
+- **SkillAssignment**: User-skill mapping
+- **SkillResource**: Learning resources per skill
+
+### Assessments
+- **Assessment**: Assessment definitions
+- **AssessmentQuestion**: Question bank (MCQ, T/F, Descriptive, Practice)
+- **AssessmentAssignment**: User assessment assignments
+- **AssessmentResult**: Assessment attempt results
+
+### Training
+- **Training**: Training programs (online/offline)
+- **TrainingAssignment**: User training assignments
+- **TrainingProgress**: Progress tracking
+- **TrainingProof**: Proof submissions
+
+### Feedback & Progress
+- **Feedback**: Training-specific feedback
+- **ProgressLog**: Overall progress tracking
+
+### Employee Journeys
+- **EmployeeJourney**: Journey instances (90-day/cyclical)
+- **JourneyPhase**: Journey phases with milestones
+- **JourneyActivity**: Activity log and timeline
+
+### System
+- **Config**: System configuration key-value store
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- npm or yarn
+
+### Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/skillloop?schema=public"
 ├── Docs/                # Project documentation
 └── Data/                # Seed data files
 ```
