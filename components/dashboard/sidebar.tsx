@@ -116,6 +116,11 @@ const trainerNavItems = [
     href: "/trainer/grading",
     icon: RiEditLine,
   },
+  {
+    title: "Mentorship",
+    href: "/trainer/mentorship",
+    icon: RiUserLine,
+  },
 ];
 
 const managerNavItems = [
@@ -164,6 +169,11 @@ const managerNavItems = [
     href: "/admin/reports/feedback/training",
     icon: RiStarLine,
   },
+  {
+    title: "Mentorship",
+    href: "/employee/mentorship",
+    icon: RiUserLine,
+  },
 ];
 
 const employeeNavItems = [
@@ -202,6 +212,7 @@ const employeeNavItems = [
     href: "/employee/assessments",
     icon: RiFileChartLine,
   },
+
 ];
 
 export function DashboardSidebar({ user }: SidebarProps) {

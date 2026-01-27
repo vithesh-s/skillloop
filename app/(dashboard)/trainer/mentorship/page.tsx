@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, Mail, MapPin, Briefcase, Calendar } from "lucide-react";
+import { ArrowRight, Mail, MapPin, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -109,7 +109,8 @@ export default async function MentorshipPage() {
                 </div>
 
                 <Button asChild className="w-full mt-2" variant="outline">
-                  <Link href={`/admin/users/${phase.journey.user.id}/journey`}>
+                  {/* Updated Link to Trainer View */}
+                  <Link href={`/trainer/mentorship/${phase.journey.user.id}/journey`}>
                     View Journey details
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Link>

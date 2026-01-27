@@ -19,9 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PhaseType } from "@prisma/client";
 import { Plus, X, Edit2, GripVertical } from "lucide-react";
-import { PhaseConfig } from "@/lib/journey-constants";
+import { PhaseConfig, PhaseType } from "@/lib/journey-constants";
 
 interface PhaseConfigBuilderProps {
   defaultPhases: PhaseConfig[];

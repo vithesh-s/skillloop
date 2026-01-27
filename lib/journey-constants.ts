@@ -1,9 +1,20 @@
-/**
- * Journey Constants - Shared types and default configurations
- * This file contains no server-side dependencies and can be imported by client components
- */
+export enum PhaseType {
+    // New Employee
+    INDUCTION_INITIAL_ASSESSMENT = "INDUCTION_INITIAL_ASSESSMENT",
+    INDUCTION_TRAINING = "INDUCTION_TRAINING",
+    SKILL_ASSESSMENT = "SKILL_ASSESSMENT",
+    TNA_GENERATION = "TNA_GENERATION",
+    PROGRESS_TRACKING = "PROGRESS_TRACKING",
+    FEEDBACK_COLLECTION = "FEEDBACK_COLLECTION",
+    POST_ASSESSMENT = "POST_ASSESSMENT",
 
-import { PhaseType } from "@prisma/client";
+    // Existing Employee
+    ROLE_ASSESSMENT = "ROLE_ASSESSMENT",
+    TRAINING_ASSIGNMENT = "TRAINING_ASSIGNMENT",
+    TRAINING_EXECUTION = "TRAINING_EXECUTION",
+    RE_ASSESSMENT = "RE_ASSESSMENT",
+    MATRIX_UPDATE = "MATRIX_UPDATE"
+}
 
 export interface PhaseConfig {
     phaseType: PhaseType;
