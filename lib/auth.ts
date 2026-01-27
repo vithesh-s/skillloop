@@ -30,8 +30,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Authentication providers
     providers: [
         Nodemailer({
-            server: process.env.EMAIL_SERVER,
-            from: process.env.EMAIL_FROM,
+            server: process.env.EMAIL_SERVER || "smtp://mock:mock@localhost:25",
+            from: process.env.EMAIL_FROM || "onboarding@resend.dev",
             sendVerificationRequest: sendVerificationRequest as any,
         }),
         Credentials({
