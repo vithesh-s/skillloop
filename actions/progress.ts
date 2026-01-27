@@ -153,9 +153,9 @@ export async function getProgressUpdates(assignmentId: string) {
         const stats = {
             totalWeeks: updates.length,
             averageCompletion: updates.length > 0
-                ? Math.round(updates.reduce((sum, u) => sum + u.completionPercentage, 0) / updates.length)
+                ? Math.round(updates.reduce((sum: number, u: { completionPercentage: number }) => sum + u.completionPercentage, 0) / updates.length)
                 : 0,
-            totalTimeSpent: updates.reduce((sum, u) => sum + (u.timeSpent || 0), 0),
+            totalTimeSpent: updates.reduce((sum: number, u: { timeSpent: number | null }) => sum + (u.timeSpent || 0), 0),
             lastUpdateDate: updates.length > 0
                 ? updates[updates.length - 1].createdAt
                 : null
@@ -251,9 +251,9 @@ export async function getAssignmentProgress(assignmentId: string) {
             totalWeeks: assignment.progressUpdates.length,
             completedWeeks: assignment.progressUpdates.filter(u => u.completionPercentage === 100).length,
             averageCompletion: assignment.progressUpdates.length > 0
-                ? Math.round(assignment.progressUpdates.reduce((sum, u) => sum + u.completionPercentage, 0) / assignment.progressUpdates.length)
+                ? Math.round(assignment.progressUpdates.reduce((sum: number, u: { completionPercentage: number }) => sum + u.completionPercentage, 0) / assignment.progressUpdates.length)
                 : 0,
-            totalTimeSpent: assignment.progressUpdates.reduce((sum, u) => sum + (u.timeSpent || 0), 0),
+            totalTimeSpent: assignment.progressUpdates.reduce((sum: number, u: { timeSpent: number | null }) => sum + (u.timeSpent || 0), 0),
             lastUpdateDate: assignment.progressUpdates.length > 0
                 ? assignment.progressUpdates[assignment.progressUpdates.length - 1].createdAt
                 : null,

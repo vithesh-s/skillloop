@@ -53,7 +53,7 @@ export function QuestionsList({ assessmentId, lastUpdate }: QuestionsListProps) 
     setLoading(false)
   }
 
-  const currentTotal = questions.reduce((sum, q) => sum + q.marks, 0)
+  const currentTotal = questions.reduce((sum: number, q: { marks: number }) => sum + q.marks, 0)
   const isOverLimit = currentTotal > targetTotal
   const isUnderLimit = currentTotal < targetTotal
 

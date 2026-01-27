@@ -124,7 +124,7 @@ export function UserSkillManagement({
   const totalSkills = skillMatrix.length
   const skillsWithGaps = skillMatrix.filter(e => (e.gapPercentage || 0) > 0).length
   const avgGap = skillMatrix.length > 0
-    ? Math.round(skillMatrix.reduce((sum, e) => sum + (e.gapPercentage || 0), 0) / skillMatrix.length)
+    ? Math.round(skillMatrix.reduce((sum: number, e: { gapPercentage: number | null }) => sum + (e.gapPercentage || 0), 0) / skillMatrix.length)
     : 0
 
   const handleDelete = async () => {

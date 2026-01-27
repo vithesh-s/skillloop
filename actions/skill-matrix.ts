@@ -853,10 +853,10 @@ export async function analyzeUserSkillGaps(
     const completedSkills = skillGaps.filter(g => g.gapCategory === GapCategory.NONE).length
 
     const averageGap = totalSkills > 0
-      ? skillGaps.reduce((sum, g) => sum + g.gapPercentage, 0) / totalSkills
+      ? skillGaps.reduce((sum: number, g: { gapPercentage: number }) => sum + g.gapPercentage, 0) / totalSkills
       : 0
 
-    const gapsByCategory = skillGaps.reduce((acc, gap) => {
+    const gapsByCategory = skillGaps.reduce((acc: Record<string, SkillGapData[]>, gap: SkillGapData) => {
       if (!acc[gap.categoryName]) {
         acc[gap.categoryName] = []
       }
@@ -1123,7 +1123,7 @@ export async function generateDepartmentTNA(
       }
     }
 
-    const totalSkills = users.reduce((sum, u) => sum + u.skillMatrix.length, 0)
+    const totalSkills = users.reduce((sum: number, u: { skillMatrix: any[] }) => sum + u.skillMatrix.length, 0)
     const averageGapScore = totalSkills > 0 ? totalGapScore / totalSkills : 0
 
     const sortedSkills = Object.entries(skillGapMap)

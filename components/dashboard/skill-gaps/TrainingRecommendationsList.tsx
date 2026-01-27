@@ -27,7 +27,7 @@ const priorityColors = {
 
 export function TrainingRecommendationsList({ recommendations }: TrainingRecommendationsListProps) {
   // Group by priority
-  const groupedRecommendations = recommendations.reduce((acc, rec) => {
+  const groupedRecommendations = recommendations.reduce((acc: Record<string, TrainingRecommendation[]>, rec: TrainingRecommendation) => {
     if (!acc[rec.priority]) {
       acc[rec.priority] = []
     }

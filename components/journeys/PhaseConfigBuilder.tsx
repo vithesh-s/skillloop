@@ -94,7 +94,7 @@ export function PhaseConfigBuilder({
     setEditingPhaseIndex(null);
   };
 
-  const totalDuration = phases.reduce((sum, phase) => sum + (phase.durationDays || 0), 0);
+  const totalDuration = phases.reduce((sum: number, phase: { durationDays?: number }) => sum + (phase.durationDays || 0), 0);
 
   return (
     <div className="space-y-4">

@@ -244,16 +244,16 @@ export async function getTrainingFeedback(trainingId: string) {
         // Calculate aggregates
         const totalResponses = parsedFeedbacks.length
         const avgTrainerRating = totalResponses > 0
-            ? parsedFeedbacks.reduce((sum, fb) => sum + (fb.trainerRating || 0), 0) / totalResponses
+            ? parsedFeedbacks.reduce((sum: number, fb: { trainerRating: number | null }) => sum + (fb.trainerRating || 0), 0) / totalResponses
             : 0
         const avgContentRating = totalResponses > 0
-            ? parsedFeedbacks.reduce((sum, fb) => sum + (fb.contentRating || 0), 0) / totalResponses
+            ? parsedFeedbacks.reduce((sum: number, fb: { contentRating: number | null }) => sum + (fb.contentRating || 0), 0) / totalResponses
             : 0
         const avgLogisticsRating = totalResponses > 0
-            ? parsedFeedbacks.reduce((sum, fb) => sum + (fb.logisticsRating || 0), 0) / totalResponses
+            ? parsedFeedbacks.reduce((sum: number, fb: { logisticsRating: number | null }) => sum + (fb.logisticsRating || 0), 0) / totalResponses
             : 0
         const avgOverallRating = totalResponses > 0
-            ? parsedFeedbacks.reduce((sum, fb) => sum + (fb.overallRating || 0), 0) / totalResponses
+            ? parsedFeedbacks.reduce((sum: number, fb: { overallRating: number | null }) => sum + (fb.overallRating || 0), 0) / totalResponses
             : 0
 
         // Quality rating distribution
@@ -387,10 +387,10 @@ export async function getFeedbackSummary(filters?: FeedbackFilterInput) {
 
         // Calculate averages
         const avgRatings = {
-            trainer: feedbacks.reduce((sum, fb) => sum + (fb.trainerRating || 0), 0) / totalResponses,
-            content: feedbacks.reduce((sum, fb) => sum + (fb.contentRating || 0), 0) / totalResponses,
-            logistics: feedbacks.reduce((sum, fb) => sum + (fb.logisticsRating || 0), 0) / totalResponses,
-            overall: feedbacks.reduce((sum, fb) => sum + (fb.overallRating || 0), 0) / totalResponses,
+            trainer: feedbacks.reduce((sum: number, fb: { trainerRating: number | null }) => sum + (fb.trainerRating || 0), 0) / totalResponses,
+            content: feedbacks.reduce((sum: number, fb: { contentRating: number | null }) => sum + (fb.contentRating || 0), 0) / totalResponses,
+            logistics: feedbacks.reduce((sum: number, fb: { logisticsRating: number | null }) => sum + (fb.logisticsRating || 0), 0) / totalResponses,
+            overall: feedbacks.reduce((sum: number, fb: { overallRating: number | null }) => sum + (fb.overallRating || 0), 0) / totalResponses,
         }
 
         // Calculate NPS (Net Promoter Score)
@@ -424,7 +424,7 @@ export async function getFeedbackSummary(filters?: FeedbackFilterInput) {
         const trainerRankings = Array.from(trainerStats.values())
             .map(stat => ({
                 name: stat.name,
-                avgRating: stat.ratings.reduce((a, b) => a + b, 0) / stat.count,
+                avgRating: stat.ratings.reduce((a: number, b: number) => a + b, 0) / stat.count,
                 totalFeedbacks: stat.count,
             }))
             .sort((a, b) => b.avgRating - a.avgRating)
@@ -651,9 +651,9 @@ export async function getTrainingEffectiveness(filters?: { skillId?: string; tra
 
             if (userResults.length > 0) {
                 // Calculate statistics
-                const avgImprovement = userResults.reduce((sum, r) => sum + r.improvement, 0) / userResults.length
-                const avgPreScore = userResults.reduce((sum, r) => sum + r.preScore, 0) / userResults.length
-                const avgPostScore = userResults.reduce((sum, r) => sum + r.postScore, 0) / userResults.length
+                const avgImprovement = userResults.reduce((sum: number, r: { improvement: number }) => sum + r.improvement, 0) / userResults.length
+                const avgPreScore = userResults.reduce((sum: number, r: { preScore: number }) => sum + r.preScore, 0) / userResults.length
+                const avgPostScore = userResults.reduce((sum: number, r: { postScore: number }) => sum + r.postScore, 0) / userResults.length
                 const passRate = (userResults.filter(r => r.passed).length / userResults.length) * 100
 
                 // Distribution
@@ -776,16 +776,16 @@ export async function getTrainingFeedbackDetails(trainingId: string) {
         // Calculate average ratings
         const avgRatings = {
             trainer: feedbackCount > 0
-                ? Math.round((withFeedback.reduce((sum, a) => sum + (a.feedback?.[0]?.trainerRating || 0), 0) / feedbackCount) * 10) / 10
+                ? Math.round((withFeedback.reduce((sum: number, a: { feedback?: Array<{ trainerRating: number | null }> }) => sum + (a.feedback?.[0]?.trainerRating || 0), 0) / feedbackCount) * 10) / 10
                 : 0,
             content: feedbackCount > 0
-                ? Math.round((withFeedback.reduce((sum, a) => sum + (a.feedback?.[0]?.contentRating || 0), 0) / feedbackCount) * 10) / 10
+                ? Math.round((withFeedback.reduce((sum: number, a: { feedback?: Array<{ contentRating: number | null }> }) => sum + (a.feedback?.[0]?.contentRating || 0), 0) / feedbackCount) * 10) / 10
                 : 0,
             logistics: feedbackCount > 0
-                ? Math.round((withFeedback.reduce((sum, a) => sum + (a.feedback?.[0]?.logisticsRating || 0), 0) / feedbackCount) * 10) / 10
+                ? Math.round((withFeedback.reduce((sum: number, a: { feedback?: Array<{ logisticsRating: number | null }> }) => sum + (a.feedback?.[0]?.logisticsRating || 0), 0) / feedbackCount) * 10) / 10
                 : 0,
             overall: feedbackCount > 0
-                ? Math.round((withFeedback.reduce((sum, a) => sum + (a.feedback?.[0]?.overallRating || 0), 0) / feedbackCount) * 10) / 10
+                ? Math.round((withFeedback.reduce((sum: number, a: { feedback?: Array<{ overallRating: number | null }> }) => sum + (a.feedback?.[0]?.overallRating || 0), 0) / feedbackCount) * 10) / 10
                 : 0,
         }
 

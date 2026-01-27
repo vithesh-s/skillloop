@@ -20,7 +20,7 @@ interface GapDistributionChartProps {
 export function GapDistributionChart({ gapsByCategory }: GapDistributionChartProps) {
   // Prepare chart data
   const chartData = Object.entries(gapsByCategory).map(([categoryName, gaps]) => {
-    const averageGap = gaps.reduce((sum, gap) => sum + gap.gapPercentage, 0) / gaps.length
+    const averageGap = gaps.reduce((sum: number, gap: { gapPercentage: number }) => sum + gap.gapPercentage, 0) / gaps.length
     const categoryColor = gaps[0]?.categoryColor || '#6B7280'
     
     return {

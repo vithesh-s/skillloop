@@ -43,7 +43,7 @@ export function ProgressTimeline({ progressUpdates, assignmentId }: ProgressTime
 
     // Calculate average for reference line
     const avgCompletion = chartData.length > 0
-        ? chartData.reduce((sum, d) => sum + d.completion, 0) / chartData.length
+        ? chartData.reduce((sum: number, d: { completion: number }) => sum + d.completion, 0) / chartData.length
         : 0
 
     // Custom tooltip for chart
