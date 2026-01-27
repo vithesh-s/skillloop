@@ -34,7 +34,15 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { RiLoader4Line, RiSearchLine, RiFilterLine, RiUserLine, RiBookOpenLine, RiCalendarLine } from '@remixicon/react'
+import { RiLoader4Line, RiSearchLine, RiFilterLine, RiUserLine, RiBookOpenLine, RiCalendarLine, RiCheckLine } from '@remixicon/react'
+
+const TARGET_LEVELS = [
+    { value: 1, label: "Beginner", dbValue: "BEGINNER", description: "Just starting out", color: "bg-blue-500" },
+    { value: 2, label: "Basic", dbValue: "BASIC", description: "Little experience", color: "bg-cyan-500" },
+    { value: 3, label: "Intermediate", dbValue: "INTERMEDIATE", description: "Comfortable", color: "bg-green-500" },
+    { value: 4, label: "Advanced", dbValue: "ADVANCED", description: "Very skilled", color: "bg-orange-500" },
+    { value: 5, label: "Expert", dbValue: "EXPERT", description: "Master level", color: "bg-purple-500" },
+]
 
 interface AssignTrainingInterfaceProps {
     reportees: { 
@@ -53,6 +61,7 @@ interface AssignTrainingInterfaceProps {
 export function AssignTrainingInterface({ reportees, trainings, roles }: AssignTrainingInterfaceProps) {
     const [selectedUsers, setSelectedUsers] = useState<string[]>([])
     const [selectedTrainingId, setSelectedTrainingId] = useState<string>('')
+    const [targetLevel, setTargetLevel] = useState<number>(1)
     const [startDate, setStartDate] = useState<string>('')
     const [completionDate, setCompletionDate] = useState<string>('')
     const [isPending, startTransition] = useTransition()
@@ -111,8 +120,10 @@ export function AssignTrainingInterface({ reportees, trainings, roles }: AssignT
         if (!startDate || !completionDate) return toast.error('Select dates')
         if (new Date(completionDate) <= new Date(startDate)) return toast.error('Completion date must be after start date')
 
+        const selectedLevelConfig = TARGET_LEVELS.find(l => l.value === targetLevel)
         const payload = {
             trainingId: selectedTrainingId,
+            targetLevel: selectedLevelConfig?.dbValue || 'BEGINNER',
             assignments: selectedUsers.map(userId => ({
                 userId,
                 startDate,
@@ -128,6 +139,7 @@ export function AssignTrainingInterface({ reportees, trainings, roles }: AssignT
                 setStartDate('')
                 setCompletionDate('')
                 setSelectedTrainingId('')
+                setTargetLevel(1)
                 router.refresh()
             } else {
                 toast.error(result.error || 'Failed to assign')
@@ -363,6 +375,37 @@ export function AssignTrainingInterface({ reportees, trainings, roles }: AssignT
                                         </p>
                                     </div>
                                 )}
+                            </div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <Label>Target Competency Level *</Label>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Expected skill level after training completion
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {TARGET_LEVELS.map((level) => (
+                                        <button
+                                            key={level.value}
+                                            type="button"
+                                            onClick={() => setTargetLevel(level.value)}
+                                            className={`
+                                                flex flex-col items-center justify-center p-2.5 rounded-lg border-2 transition-all
+                                                ${targetLevel === level.value 
+                                                    ? 'border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20' 
+                                                    : 'border-border hover:border-primary/50 hover:bg-accent'
+                                                }
+                                            `}
+                                        >
+                                            <span className="text-xl font-bold">{level.value}</span>
+                                            <span className="text-[11px] font-medium mt-0.5">{level.label}</span>
+                                            <span className="text-[9px] text-muted-foreground leading-tight text-center">
+                                                {level.description}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="space-y-2">

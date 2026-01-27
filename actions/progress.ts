@@ -22,16 +22,16 @@ export async function createProgressUpdate(data: ProgressUpdateInput) {
             where: { id: validated.assignmentId },
             include: {
                 training: {
-                    select: { 
+                    select: {
                         topicName: true,
-                        mode: true 
+                        mode: true
                     }
                 },
                 mentor: {
-                    select: { 
-                        id: true, 
-                        name: true, 
-                        email: true 
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
                     }
                 }
             }
@@ -99,7 +99,7 @@ export async function createProgressUpdate(data: ProgressUpdateInput) {
 
         revalidatePath('/employee/training/[id]/progress', 'page')
         revalidatePath('/trainer/review-progress')
-        
+
         return { success: true, data: progress }
     } catch (error) {
         console.error('Create progress update error:', error)
@@ -121,10 +121,10 @@ export async function getProgressUpdates(assignmentId: string) {
         // Verify authorization
         const assignment = await prisma.trainingAssignment.findUnique({
             where: { id: assignmentId },
-            select: { 
-                userId: true, 
-                trainerId: true, 
-                mentorId: true 
+            select: {
+                userId: true,
+                trainerId: true,
+                mentorId: true
             }
         })
 
@@ -133,7 +133,7 @@ export async function getProgressUpdates(assignmentId: string) {
         }
 
         const roles = session.user.systemRoles || []
-        const isAuthorized = 
+        const isAuthorized =
             assignment.userId === session.user.id ||
             assignment.trainerId === session.user.id ||
             assignment.mentorId === session.user.id ||
@@ -152,11 +152,11 @@ export async function getProgressUpdates(assignmentId: string) {
         // Calculate statistics
         const stats = {
             totalWeeks: updates.length,
-            averageCompletion: updates.length > 0 
+            averageCompletion: updates.length > 0
                 ? Math.round(updates.reduce((sum, u) => sum + u.completionPercentage, 0) / updates.length)
                 : 0,
             totalTimeSpent: updates.reduce((sum, u) => sum + (u.timeSpent || 0), 0),
-            lastUpdateDate: updates.length > 0 
+            lastUpdateDate: updates.length > 0
                 ? updates[updates.length - 1].createdAt
                 : null
         }
@@ -236,7 +236,7 @@ export async function getAssignmentProgress(assignmentId: string) {
 
         // Authorization check
         const roles = session.user.systemRoles || []
-        const isAuthorized = 
+        const isAuthorized =
             assignment.userId === session.user.id ||
             assignment.trainerId === session.user.id ||
             assignment.mentorId === session.user.id ||
@@ -289,10 +289,10 @@ export async function addMentorComment(data: MentorCommentInput) {
                             select: { topicName: true }
                         },
                         user: {
-                            select: { 
+                            select: {
                                 id: true,
-                                name: true, 
-                                email: true 
+                                name: true,
+                                email: true
                             }
                         }
                     }
@@ -306,7 +306,7 @@ export async function addMentorComment(data: MentorCommentInput) {
 
         // Verify user is mentor, trainer, or admin
         const roles = session.user.systemRoles || []
-        const isAuthorized = 
+        const isAuthorized =
             progress.assignment.mentorId === session.user.id ||
             progress.assignment.trainerId === session.user.id ||
             roles.includes('ADMIN')
@@ -401,7 +401,7 @@ export async function getTrainingsForReview(mentorId?: string) {
         // Calculate summary stats for each assignment
         const enriched = assignments.map(assignment => {
             const latestProgress = assignment.progressUpdates[0]
-            const daysSinceUpdate = latestProgress 
+            const daysSinceUpdate = latestProgress
                 ? Math.floor((new Date().getTime() - latestProgress.createdAt.getTime()) / (1000 * 60 * 60 * 24))
                 : null
 

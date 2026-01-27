@@ -23,21 +23,21 @@ export async function submitProof(data: ProofSubmissionInput) {
             where: { id: validated.assignmentId },
             include: {
                 training: {
-                    select: { 
-                        topicName: true 
+                    select: {
+                        topicName: true
                     }
                 },
                 trainer: {
-                    select: { 
-                        id: true, 
-                        name: true, 
-                        email: true 
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
                     }
                 },
                 mentor: {
-                    select: { 
-                        id: true, 
-                        email: true 
+                    select: {
+                        id: true,
+                        email: true
                     }
                 }
             }
@@ -105,10 +105,10 @@ export async function getProofsForAssignment(assignmentId: string) {
         // Verify authorization
         const assignment = await prisma.trainingAssignment.findUnique({
             where: { id: assignmentId },
-            select: { 
-                userId: true, 
-                trainerId: true, 
-                mentorId: true 
+            select: {
+                userId: true,
+                trainerId: true,
+                mentorId: true
             }
         })
 
@@ -117,7 +117,7 @@ export async function getProofsForAssignment(assignmentId: string) {
         }
 
         const roles = session.user.systemRoles || []
-        const isAuthorized = 
+        const isAuthorized =
             assignment.userId === session.user.id ||
             assignment.trainerId === session.user.id ||
             assignment.mentorId === session.user.id ||
@@ -293,7 +293,7 @@ export async function reviewProof(data: ProofReviewInput) {
 
         // Verify reviewer is authorized
         const roles = session.user.systemRoles || []
-        const isAuthorized = 
+        const isAuthorized =
             proof.assignment.trainerId === session.user.id ||
             proof.assignment.mentorId === session.user.id ||
             roles.includes('ADMIN')

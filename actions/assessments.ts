@@ -73,6 +73,7 @@ export async function createAssessment(
     })
 
     revalidatePath("/admin/assessments")
+    revalidatePath("/employee/assessment-duties")
 
     return {
       message: "Assessment created successfully",
@@ -124,6 +125,7 @@ export async function updateAssessment(
     })
 
     revalidatePath("/admin/assessments")
+    revalidatePath("/employee/assessment-duties")
     revalidatePath(`/admin/assessments/${assessmentId}`)
 
     return {
@@ -250,6 +252,7 @@ export async function publishAssessment(assessmentId: string): Promise<FormState
     })
 
     revalidatePath("/admin/assessments")
+    revalidatePath("/employee/assessment-duties")
     revalidatePath(`/admin/assessments/${assessmentId}`)
 
     return {
@@ -1246,7 +1249,12 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       where: { id: attemptId },
       include: {
         answers: true,
-        assessment: true,
+        assessment: {
+          include: {
+            skill: true,
+          },
+        },
+        user: true,
       },
     })
 
@@ -1284,18 +1292,82 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       },
     })
 
+    // For post-assessments, calculate training effectiveness
+    const isPostAssessment = !attempt.assessment.isPreAssessment
+    let improvement = 0
+    let preAssessmentScore = 0
+
+    if (isPostAssessment) {
+      // Find pre-assessment for the same skill
+      const preAssessment = await prisma.assessment.findFirst({
+        where: {
+          skillId: attempt.assessment.skillId,
+          isPreAssessment: true,
+        },
+      })
+
+      if (preAssessment) {
+        // Find pre-assessment attempt
+        const preAttempt = await prisma.assessmentAttempt.findFirst({
+          where: {
+            assessmentId: preAssessment.id,
+            userId: attempt.userId,
+            status: 'completed',
+          },
+          orderBy: {
+            completedAt: 'desc',
+          },
+        })
+
+        if (preAttempt) {
+          preAssessmentScore = preAttempt.percentage || 0
+          improvement = ((percentage - preAssessmentScore) / preAssessmentScore) * 100
+        }
+      }
+    }
+
     // Update or create SkillMatrix record
     const passed = percentage >= attempt.assessment.passingScore
 
     if (passed) {
+      // Determine level based on post-assessment score
       const currentLevel =
-        percentage >= 90
+        percentage >= 81
           ? "EXPERT"
-          : percentage >= 75
+          : percentage >= 61
             ? "ADVANCED"
-            : percentage >= 60
+            : percentage >= 41
               ? "INTERMEDIATE"
               : "BEGINNER"
+
+      const skillMatrix = await prisma.skillMatrix.findUnique({
+        where: {
+          userId_skillId: {
+            userId: attempt.userId,
+            skillId: attempt.assessment.skillId,
+          },
+        },
+      })
+
+      // Calculate new gap percentage
+      const levelScores = {
+        BEGINNER: 25,
+        INTERMEDIATE: 50,
+        ADVANCED: 75,
+        EXPERT: 95,
+      }
+
+      const currentScore = levelScores[currentLevel]
+      const desiredScore = levelScores[skillMatrix?.desiredLevel || 'EXPERT']
+      const gapPercentage = Math.max(0, Math.round(((desiredScore - currentScore) / desiredScore) * 100))
+
+      // Increase confidence if improvement is significant (>20%)
+      const newConfidence = improvement > 20 
+        ? Math.min(100, (skillMatrix?.confidence || 50) + 10)
+        : skillMatrix?.confidence || 50
+
+      // Update status based on gap
+      const newStatus = gapPercentage < 15 ? 'completed' : 'in_progress'
 
       await prisma.skillMatrix.upsert({
         where: {
@@ -1307,7 +1379,9 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
         update: {
           currentLevel,
           lastAssessedDate: new Date(),
-          status: "completed",
+          status: newStatus,
+          gapPercentage,
+          confidence: newConfidence,
         },
         create: {
           userId: attempt.userId,
@@ -1315,9 +1389,38 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
           currentLevel,
           desiredLevel: "EXPERT",
           lastAssessedDate: new Date(),
-          status: "completed",
+          status: newStatus,
+          gapPercentage,
+          confidence: newConfidence,
         },
       })
+
+      // Send skill progression notification if post-assessment
+      if (isPostAssessment && preAssessmentScore > 0) {
+        await prisma.notification.create({
+          data: {
+            recipientId: attempt.userId,
+            type: 'TRAINING_COMPLETED',
+            subject: 'Skill Level Updated',
+            message: `Your ${attempt.assessment.skill?.name} level has been updated to ${currentLevel}. You improved by ${improvement.toFixed(1)}% from your pre-assessment!`,
+          },
+        })
+
+        // Send email notification
+        await sendEmail({
+          to: attempt.user.email,
+          subject: 'Skill Progression Update',
+          template: 'skill-progression',
+          data: {
+            userName: attempt.user.name,
+            skillName: attempt.assessment.skill?.name || 'the skill',
+            newLevel: currentLevel,
+            preScore: preAssessmentScore.toFixed(1),
+            postScore: percentage.toFixed(1),
+            improvement: improvement.toFixed(1),
+          },
+        })
+      }
 
       // Recalculate skill gaps after assessment completion
       try {
@@ -1326,6 +1429,42 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       } catch (gapError) {
         console.error('Failed to update skill matrix gaps:', gapError)
         // Continue - gap update failure shouldn't fail grading
+      }
+
+      // Journey auto-advance: Check if this assessment is linked to a journey phase
+      try {
+        const userWithJourney = await prisma.user.findUnique({
+          where: { id: attempt.userId },
+          include: {
+            journey: {
+              include: {
+                phases: {
+                  where: {
+                    assessmentId: attempt.assessmentId,
+                    status: 'IN_PROGRESS',
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        if (userWithJourney?.journey && userWithJourney.journey.phases.length > 0) {
+          const { autoAdvancePhase } = await import('./journeys')
+          await autoAdvancePhase(
+            userWithJourney.journey.id,
+            'assessment_completed',
+            {
+              assessmentId: attempt.assessmentId,
+              attemptId: attempt.id,
+              score: totalScore,
+              percentage,
+            }
+          )
+        }
+      } catch (journeyError) {
+        console.error('Failed to auto-advance journey phase:', journeyError)
+        // Continue - journey advance failure shouldn't fail grading
       }
     }
 

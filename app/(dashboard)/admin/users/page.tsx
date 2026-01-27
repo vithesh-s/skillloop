@@ -4,12 +4,14 @@ import { getUsers } from "@/actions/users";
 import { UsersTable } from "@/components/dashboard/users/users-table";
 import { CreateUserDialog } from "@/components/dashboard/users/create-user-dialog";
 import { UsersFilters } from "@/components/dashboard/users/users-filters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface UsersPageProps {
   searchParams: Promise<{
     role?: string;
     search?: string;
     page?: string;
+    employeeType?: string;
   }>;
 }
 
@@ -44,12 +46,42 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
 
       <UsersFilters />
 
-      <UsersTable
-        users={users}
-        total={total}
-        pages={pages}
-        currentPage={currentPage}
-      />
+      <Tabs defaultValue={params.employeeType || "all"} className="w-full">
+        <TabsList>
+          <TabsTrigger value="all">All Users</TabsTrigger>
+          <TabsTrigger value="NEW_EMPLOYEE">New Employees</TabsTrigger>
+          <TabsTrigger value="EXISTING_EMPLOYEE">Existing Employees</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all" className="mt-6">
+          <UsersTable
+            users={users}
+            total={total}
+            pages={pages}
+            currentPage={currentPage}
+          />
+        </TabsContent>
+        
+        <TabsContent value="NEW_EMPLOYEE" className="mt-6">
+          <UsersTable
+            users={users}
+            total={total}
+            pages={pages}
+            currentPage={currentPage}
+            employeeTypeFilter="NEW_EMPLOYEE"
+          />
+        </TabsContent>
+        
+        <TabsContent value="EXISTING_EMPLOYEE" className="mt-6">
+          <UsersTable
+            users={users}
+            total={total}
+            pages={pages}
+            currentPage={currentPage}
+            employeeTypeFilter="EXISTING_EMPLOYEE"
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

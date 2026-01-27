@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { RiLoader4Line, RiArrowDownSLine, RiCheckLine, RiCloseLine, RiErrorWarningLine } from "@remixicon/react";
+import { PhaseConfigBuilder } from "@/components/journeys/PhaseConfigBuilder";
+import { DEFAULT_NEW_EMPLOYEE_PHASES, DEFAULT_EXISTING_EMPLOYEE_PHASES } from "@/lib/journey-engine";
+import type { PhaseType } from "@prisma/client";
 import { toast } from "sonner";
+import type { PhaseConfig } from "@/lib/journey-engine";
 
 interface User {
   id: string;
@@ -67,6 +72,10 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
   const [selectedSystemRoles, setSelectedSystemRoles] = useState<string[]>([]);
   const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [employeeType, setEmployeeType] = useState<string>("");
+  const [initJourney, setInitJourney] = useState(false);
+  const [customizePhases, setCustomizePhases] = useState(false);
+  const [customPhases, setCustomPhases] = useState<PhaseConfig[]>([]);
   
   // Wrapper for the appropriate action
   const action = user ? updateUser.bind(null, user.id) : createUser;
@@ -79,8 +88,21 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
       setSelectedSystemRoles(user.systemRoles || []);
     } else {
       setSelectedSystemRoles([]); // Reset for create mode
+      setEmployeeType("");
+      setInitJourney(false);
+      setCustomizePhases(false);
+      setCustomPhases([]);
     }
   }, [user, open]);
+
+  // Initialize custom phases when employee type changes
+  useEffect(() => {
+    if (employeeType === "NEW_EMPLOYEE") {
+      setCustomPhases(DEFAULT_NEW_EMPLOYEE_PHASES);
+    } else if (employeeType === "EXISTING_EMPLOYEE") {
+      setCustomPhases(DEFAULT_EXISTING_EMPLOYEE_PHASES);
+    }
+  }, [employeeType]);
 
   // Load job roles
   useEffect(() => {
@@ -261,6 +283,89 @@ export function UserDialog({ user, open, onOpenChange }: UserDialogProps) {
               <p className="mt-1 text-sm text-red-600">{state.errors.roleId[0]}</p>
             )}
           </div>
+
+          {!user && (
+            <>
+              <div>
+                <Label htmlFor="employeeType">Employee Type</Label>
+                <Select 
+                  name="employeeType" 
+                  value={employeeType} 
+                  onValueChange={setEmployeeType}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee type" />
+                  </SelectTrigger>
+                  <SelectContent className="z-100">
+                    <SelectItem value="NEW_EMPLOYEE">New Employee</SelectItem>
+                    <SelectItem value="EXISTING_EMPLOYEE">Existing Employee</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select the employee type to automatically initialize their journey
+                </p>
+              </div>
+
+              {employeeType && (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="initJourney" 
+                      name="initJourney"
+                      checked={initJourney}
+                      onCheckedChange={(checked) => setInitJourney(checked as boolean)}
+                      value="true"
+                    />
+                    <Label 
+                      htmlFor="initJourney" 
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Initialize employee journey with default phases
+                    </Label>
+                  </div>
+
+                  {initJourney && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="customizePhases" 
+                        checked={customizePhases}
+                        onCheckedChange={(checked) => setCustomizePhases(checked as boolean)}
+                      />
+                      <Label 
+                        htmlFor="customizePhases" 
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        Customize journey phases
+                      </Label>
+                    </div>
+                  )}
+
+                  {initJourney && customizePhases && (
+                    <div className="space-y-2">
+                      <Label>Configure Journey Phases</Label>
+                      <PhaseConfigBuilder 
+                        defaultPhases={
+                          employeeType === "NEW_EMPLOYEE" 
+                            ? DEFAULT_NEW_EMPLOYEE_PHASES 
+                            : DEFAULT_EXISTING_EMPLOYEE_PHASES
+                        }
+                        value={customPhases}
+                        onChange={setCustomPhases}
+                      />
+                      <input 
+                        type="hidden" 
+                        name="customPhases" 
+                        value={JSON.stringify(customPhases)} 
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Configure custom phases for this employee&apos;s journey
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button

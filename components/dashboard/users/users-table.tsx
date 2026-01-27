@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { deleteUser } from "@/actions/users";
 import {
   Table,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { UserDialog } from "./user-dialog";
 import {
   RiMoreLine,
@@ -36,6 +38,7 @@ import {
   RiDeleteBinLine,
   RiArrowLeftLine,
   RiArrowRightLine,
+  RiEyeLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 
@@ -49,6 +52,28 @@ interface User {
     name: string;
     department: string;
   } | null;
+  journey: {
+    id: string;
+    status: string;
+    employeeType: string;
+    userId: string;
+    startedAt: Date;
+    completedAt: Date | null;
+    cycleNumber: number;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: {
+      phases: number;
+    };
+    phases: Array<{ id: string }>;
+  } | null;
+  currentPhase: {
+    id: string;
+    title: string;
+    phaseNumber: number;
+    phaseType: string;
+    status: string;
+  } | null;
 }
 
 interface UsersTableProps {
@@ -56,6 +81,7 @@ interface UsersTableProps {
   total: number;
   pages: number;
   currentPage: number;
+  employeeTypeFilter?: string;
 }
 
 const roleColors: Record<string, string> = {
@@ -65,17 +91,29 @@ const roleColors: Record<string, string> = {
   EMPLOYEE: "bg-green-100 text-green-700",
 };
 
+const journeyStatusColors: Record<string, string> = {
+  ACTIVE: "bg-green-100 text-green-700",
+  PAUSED: "bg-yellow-100 text-yellow-700",
+  COMPLETED: "bg-blue-100 text-blue-700",
+  NOT_STARTED: "bg-gray-100 text-gray-700",
+};
+
 export function UsersTable({
   users,
   total,
   pages,
   currentPage,
+  employeeTypeFilter,
 }: UsersTableProps) {
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const filteredUsers = employeeTypeFilter
+    ? users.filter((user) => user.journey?.employeeType === employeeTypeFilter)
+    : users;
 
   const handleDelete = async () => {
     if (!selectedUser) return;
@@ -109,12 +147,14 @@ export function UsersTable({
               <TableHead>Email</TableHead>
               <TableHead>System Role</TableHead>
               <TableHead>Job Role</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>Employee Type</TableHead>
+              <TableHead>Current Phase</TableHead>
+              <TableHead>Progress</TableHead>
               <TableHead className="w-12.5"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -153,15 +193,60 @@ export function UsersTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {new Date(user.createdAt).toLocaleDateString()}
+                  {user.journey ? (
+                    <Badge variant="secondary" className={journeyStatusColors[user.journey.status]}>
+                      {user.journey.employeeType.replace("_", " ")}
+                    </Badge>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <RiMoreLine className="h-4 w-4" />
+                  {user.currentPhase ? (
+                    <div className="max-w-50">
+                      <p className="text-sm font-medium truncate">
+                        {user.currentPhase.title}
+                      </p>
+                      <Badge variant="outline" className="text-xs mt-1">
+                        Phase {user.currentPhase.phaseNumber}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {user.journey ? (
+                    <div className="min-w-30">
+                      <div className="flex items-center gap-2">
+                        <Progress 
+                          value={(user.journey.phases.length / user.journey._count.phases) * 100} 
+                          className="h-2" 
+                        />
+                        <span className="text-xs text-gray-600 whitespace-nowrap">
+                          {user.journey.phases.length}/{user.journey._count.phases}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {user.journey && (
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/admin/users/${user.id}/journey`}>
+                          <RiEyeLine className="h-4 w-4" />
+                        </Link>
                       </Button>
-                    </DropdownMenuTrigger>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <RiMoreLine className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => {
@@ -173,17 +258,18 @@ export function UsersTable({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                        className="text-red-600"
-                        onClick={() => {
-                          setSelectedUser(user);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <RiDeleteBinLine className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          className="text-red-600"
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <RiDeleteBinLine className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { RiAddLine, RiDeleteBinLine } from "@remixicon/react"
+import { RiAddLine, RiDeleteBinLine, RiInformationLine } from "@remixicon/react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 import type { Skill, SkillCategory } from "@prisma/client"
@@ -239,8 +239,9 @@ export function QuestionForm({ assessmentId, skills, defaultSkillId, onSuccess }
 
       {questionType === "DESCRIPTIVE" && (
         <div className="space-y-4">
-          <Alert>
-            <AlertDescription>
+          <Alert className="border-blue-200 bg-blue-50/50">
+            <RiInformationLine className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-900">
               Descriptive questions will require manual grading by a trainer. You can provide a model answer below for reference.
             </AlertDescription>
           </Alert>

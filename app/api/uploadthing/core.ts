@@ -25,7 +25,7 @@ export const ourFileRouter = {
       // The client passes this through the UploadThing component
       const metadata = (req as any).body?.metadata
       const assignmentId = metadata?.assignmentId
-      
+
       if (!assignmentId) {
         throw new UploadThingError('Assignment ID is required')
       }
@@ -78,10 +78,10 @@ export const ourFileRouter = {
 
         // TODO: Send notification to mentor/trainer for review
 
-        return { 
-          success: true, 
+        return {
+          success: true,
           proofId: proof.id,
-          fileUrl: file.url 
+          fileUrl: file.url
         }
       } catch (error) {
         console.error('Failed to create proof record:', error)

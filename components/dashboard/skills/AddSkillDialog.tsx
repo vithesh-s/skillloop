@@ -55,8 +55,8 @@ const COMPETENCY_LEVELS = [
 const numericToLevel = (value: number): string => {
   const mapping: Record<number, string> = {
     1: 'BEGINNER',
-    2: 'INTERMEDIATE',
-    3: 'INTERMEDIATE', // Basic maps to INTERMEDIATE  
+    2: 'BASIC',
+    3: 'INTERMEDIATE',
     4: 'ADVANCED',
     5: 'EXPERT',
   }

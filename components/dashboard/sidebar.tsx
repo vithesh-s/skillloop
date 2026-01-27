@@ -16,6 +16,7 @@ import {
   RiBarChartBoxLine,
   RiBookOpenLine,
   RiCalendarLine,
+  RiStarLine,
 } from "@remixicon/react";
 
 interface SidebarProps {
@@ -71,6 +72,16 @@ const adminNavItems = [
     title: "TNA Reports",
     href: "/admin/tna",
     icon: RiBarChartBoxLine,
+  },
+  {
+    title: "Feedback Analytics",
+    href: "/admin/reports/feedback",
+    icon: RiStarLine,
+  },
+  {
+    title: "Training Feedback",
+    href: "/admin/reports/feedback/training",
+    icon: RiStarLine,
   },
   {
     title: "System Config",
@@ -142,6 +153,16 @@ const managerNavItems = [
     title: "TNA Reports",
     href: "/manager/tna",
     icon: RiBarChartBoxLine,
+  },
+  {
+    title: "Feedback Analytics",
+    href: "/admin/reports/feedback",
+    icon: RiStarLine,
+  },
+  {
+    title: "Training Feedback",
+    href: "/admin/reports/feedback/training",
+    icon: RiStarLine,
   },
 ];
 

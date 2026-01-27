@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { CompetencyLevel } from '@prisma/client'
 import {
     trainingSchema,
     onlineTrainingSchema,
@@ -23,6 +24,37 @@ import {
 import { TrainingStatus, Role } from '@prisma/client'
 import { sendEmail } from '@/lib/email'
 import { eachDayOfInterval, isWeekend } from 'date-fns'
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+function levelToNumeric(level: CompetencyLevel | null): number {
+    if (!level) return 0
+    const mapping: Record<CompetencyLevel, number> = {
+        BEGINNER: 1,
+        BASIC: 2,
+        INTERMEDIATE: 3,
+        ADVANCED: 4,
+        EXPERT: 5,
+    }
+    return mapping[level]
+}
+
+function calculateGapPercentage(
+    desiredLevel: CompetencyLevel,
+    currentLevel: CompetencyLevel | null
+): number {
+    const desired = levelToNumeric(desiredLevel)
+    const current = levelToNumeric(currentLevel)
+
+    if (desired === 0) return 0
+    if (current === 0) return 100
+    if (current >= desired) return 0
+
+    const gap = ((desired - current) / desired) * 100
+    return Math.round(gap * 100) / 100
+}
 
 // ============================================================================
 // TRAINING CRUD OPERATIONS
@@ -219,6 +251,7 @@ export async function assignTraining(data: TrainingAssignmentInput) {
     const validatedData = validation.data
     const startDate = validatedData.startDate instanceof Date ? validatedData.startDate : new Date(validatedData.startDate)
     const targetCompletionDate = validatedData.targetCompletionDate instanceof Date ? validatedData.targetCompletionDate : new Date(validatedData.targetCompletionDate)
+    const targetLevel = validatedData.targetLevel || 'BEGINNER' // Default to BEGINNER if not specified
 
     try {
         const result = await prisma.$transaction(async (tx) => {
@@ -272,20 +305,47 @@ export async function assignTraining(data: TrainingAssignmentInput) {
                     }
                 })
 
-                // Update SkillMatrix status
                 if (training?.skillId) {
-                    await tx.skillMatrix.upsert({
-                        where: { userId_skillId: { userId, skillId: training.skillId } },
-                        create: {
-                            userId,
-                            skillId: training.skillId,
-                            desiredLevel: 'BEGINNER', // Default fallback
-                            status: 'training_assigned',
-                        },
-                        update: {
-                            status: 'training_assigned'
-                        }
+                    // Check if skill matrix entry already exists
+                    const existingSkillMatrix = await tx.skillMatrix.findUnique({
+                        where: { userId_skillId: { userId, skillId: training.skillId } }
                     })
+
+                    if (existingSkillMatrix) {
+                        // Update existing entry with new target level and recalculate gap
+                        const newGapPercentage = calculateGapPercentage(
+                            targetLevel as CompetencyLevel,
+                            existingSkillMatrix.currentLevel
+                        )
+
+                        await tx.skillMatrix.update({
+                            where: { userId_skillId: { userId, skillId: training.skillId } },
+                            data: {
+                                desiredLevel: targetLevel as CompetencyLevel,
+                                gapPercentage: newGapPercentage,
+                                // Keep track if this was originally a personal goal
+                                status: existingSkillMatrix.status === 'personal_goal' 
+                                    ? 'training_assigned_from_personal' 
+                                    : 'training_assigned'
+                            }
+                        })
+                    } else {
+                        // Create new entry with target level
+                        const newGapPercentage = calculateGapPercentage(
+                            targetLevel as CompetencyLevel,
+                            null
+                        )
+
+                        await tx.skillMatrix.create({
+                            data: {
+                                userId,
+                                skillId: training.skillId,
+                                desiredLevel: targetLevel as CompetencyLevel,
+                                gapPercentage: newGapPercentage,
+                                status: 'training_assigned',
+                            }
+                        })
+                    }
                 }
 
                 // ---------------------------------------------------------
@@ -523,7 +583,14 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
     // Find assignment
     const assignment = await prisma.trainingAssignment.findUnique({
         where: { id: data.assignmentId },
-        include: { training: true }
+        include: { 
+            training: {
+                include: {
+                    skill: true,
+                }
+            },
+            user: true,
+        }
     })
 
     if (!assignment) throw new Error('Assignment not found')
@@ -531,21 +598,14 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
 
     try {
         const result = await prisma.$transaction(async (tx) => {
+            const completionDate = new Date()
+            
             // Update assignment status
             const updatedAssignment = await tx.trainingAssignment.update({
                 where: { id: data.assignmentId },
                 data: {
                     status: 'COMPLETED',
-                    completionDate: new Date(),
-                    // Note: We might want to store the extra completion details in a new model 
-                    // or JSON field on TrainingAssignment. For now, we will update status 
-                    // and store "remarks" in feedback or just log it.
-                    // The schema shows ProofOfCompletion, Feedback, etc. 
-                    // Let's assume we store the rich data in a JSON field if we added one, 
-                    // or for this implementation (MVP), we treat it as marking complete 
-                    // and maybe storing details if the model supported it.
-                    // Current schema `TrainingAssignment` doesn't have `completionDetails` JSON.
-                    // Ideally we should add it. For now, we'll mark COMPLETED and updated SkillMatrix.
+                    completionDate: completionDate,
                 }
             })
 
@@ -556,42 +616,154 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
                         assignmentId: data.assignmentId,
                         fileName: `Certificate-${data.certificateDetails.certificateNumber || 'doc'}`,
                         filePath: data.certificateDetails.certificateUrl,
-                        status: 'PENDING', // Needs approval?
+                        status: 'PENDING',
                     }
                 })
             }
 
-            // Update SkillMatrix
+            // Schedule post-assessment 30 days after completion
             if (assignment.training.skillId) {
-                await tx.skillMatrix.update({
-                    where: { userId_skillId: { userId: session.user.id!, skillId: assignment.training.skillId } },
-                    data: {
-                        status: 'completed', // or 'competent' based on logic
-                        // gapPercentage potentially reduced?
-                    }
+                // Calculate post-assessment date (30 days from completion)
+                const postAssessmentDate = new Date(completionDate)
+                postAssessmentDate.setDate(postAssessmentDate.getDate() + 30)
+
+                // Find post-assessment for this skill
+                const postAssessment = await tx.assessment.findFirst({
+                    where: {
+                        skillId: assignment.training.skillId,
+                        trainingId: assignment.trainingId,
+                        isPreAssessment: false,
+                        status: 'PUBLISHED',
+                    },
                 })
+
+                if (postAssessment) {
+                    // Check if post-assessment assignment already exists
+                    const existingAssignment = await tx.assessmentAssignment.findUnique({
+                        where: {
+                            assessmentId_userId: {
+                                assessmentId: postAssessment.id,
+                                userId: session.user.id!,
+                            },
+                        },
+                    })
+
+                    if (!existingAssignment) {
+                        // Create new post-assessment assignment
+                        await tx.assessmentAssignment.create({
+                            data: {
+                                assessmentId: postAssessment.id,
+                                userId: session.user.id!,
+                                assignedById: assignment.training.createdById,
+                                dueDate: postAssessmentDate,
+                                status: 'PENDING',
+                            },
+                        })
+                    } else {
+                        // Update existing assignment with new due date
+                        await tx.assessmentAssignment.update({
+                            where: {
+                                assessmentId_userId: {
+                                    assessmentId: postAssessment.id,
+                                    userId: session.user.id!,
+                                },
+                            },
+                            data: {
+                                dueDate: postAssessmentDate,
+                                status: 'PENDING',
+                            },
+                        })
+                    }
+
+                    // Send post-assessment scheduled notification
+                    await tx.notification.create({
+                        data: {
+                            recipientId: session.user.id!,
+                            type: 'ASSESSMENT_ASSIGNED',
+                            subject: 'Post-Training Assessment Scheduled',
+                            message: `Congratulations on completing "${assignment.training.topicName}"! Your post-training assessment has been scheduled for ${postAssessmentDate.toLocaleDateString()}.`,
+                        },
+                    })
+
+                    // Send email notification
+                    await sendEmail({
+                        to: assignment.user.email,
+                        subject: 'Post-Training Assessment Scheduled',
+                        template: 'post-assessment-scheduled',
+                        data: {
+                            userName: assignment.user.name,
+                            trainingName: assignment.training.topicName,
+                            assessmentDate: postAssessmentDate.toLocaleDateString(),
+                            skillName: assignment.training.skill?.name || 'your skill',
+                        },
+                    })
+                }
+
+                // Update SkillMatrix status to in_progress
+                const skillMatrix = await tx.skillMatrix.findUnique({
+                    where: { 
+                        userId_skillId: { 
+                            userId: session.user.id!, 
+                            skillId: assignment.training.skillId 
+                        } 
+                    },
+                })
+
+                if (skillMatrix) {
+                    await tx.skillMatrix.update({
+                        where: { 
+                            userId_skillId: { 
+                                userId: session.user.id!, 
+                                skillId: assignment.training.skillId 
+                            } 
+                        },
+                        data: {
+                            status: 'in_progress',
+                        }
+                    })
+                }
             }
 
-            // If there's a pending assessment assignment, update its due date to NOW
-            // so the user knows they can/should take it immediately.
-            await tx.assessmentAssignment.updateMany({
-                where: {
-                    userId: session.user.id!,
-                    assessment: { skillId: assignment.training.skillId }, // Link via Skill
-                    // Or better, via implicit training link if we had one.
-                    // Since specific training -> specific assessment link isn't hard in DB yet (just via Skill),
-                    // we find the assessment for this skill.
-                    status: 'PENDING'
-                },
-                data: {
-                    dueDate: new Date()
+            // Journey auto-advance: Check if this training assignment is linked to a journey phase
+            try {
+                const userWithJourney = await tx.user.findUnique({
+                    where: { id: session.user.id! },
+                    include: {
+                        journey: {
+                            include: {
+                                phases: {
+                                    where: {
+                                        trainingAssignmentId: data.assignmentId,
+                                        status: 'IN_PROGRESS',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                })
+
+                if (userWithJourney?.journey && userWithJourney.journey.phases.length > 0) {
+                    const { autoAdvancePhase } = await import('./journeys')
+                    await autoAdvancePhase(
+                        userWithJourney.journey.id,
+                        'training_completed',
+                        {
+                            trainingAssignmentId: data.assignmentId,
+                            trainingId: assignment.trainingId,
+                            completionDate: completionDate.toISOString(),
+                        }
+                    )
                 }
-            })
+            } catch (journeyError) {
+                console.error('Failed to auto-advance journey phase:', journeyError)
+                // Continue - journey advance failure shouldn't fail training completion
+            }
 
             return updatedAssignment
         })
 
-        revalidatePath('/learner/my-trainings')
+        revalidatePath('/employee/training')
+        revalidatePath('/employee/assessments')
         return { success: true, data: result }
     } catch (error) {
         console.error('Update completion error:', error)
@@ -649,4 +821,107 @@ export async function getAvailableTrainers() {
         where: { systemRoles: { has: 'TRAINER' } },
         select: { id: true, name: true, email: true, department: true }
     })
+}
+
+// ============================================================================
+// TRAINING ASSIGNMENT DELETION
+// ============================================================================
+
+export async function deleteTrainingAssignment(assignmentId: string) {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Unauthorized' }
+
+    // Check permission (Admin or Manager)
+    const hasPermission = session.user.systemRoles?.some((role: string) => 
+        ['ADMIN', 'MANAGER'].includes(role)
+    )
+    if (!hasPermission) return { success: false, error: 'Insufficient permissions' }
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            // Get the assignment first
+            const assignment = await tx.trainingAssignment.findUnique({
+                where: { id: assignmentId },
+                include: {
+                    training: {
+                        select: { skillId: true }
+                    }
+                }
+            })
+
+            if (!assignment) {
+                return { success: false, error: 'Training assignment not found' }
+            }
+
+            // Check if there's a SkillMatrix entry for this skill
+            if (assignment.training.skillId) {
+                const skillMatrix = await tx.skillMatrix.findUnique({
+                    where: {
+                        userId_skillId: {
+                            userId: assignment.userId,
+                            skillId: assignment.training.skillId
+                        }
+                    }
+                })
+
+                if (skillMatrix) {
+                    // If it was originally a personal goal, revert to personal_goal status
+                    if (skillMatrix.status === 'training_assigned_from_personal') {
+                        await tx.skillMatrix.update({
+                            where: {
+                                userId_skillId: {
+                                    userId: assignment.userId,
+                                    skillId: assignment.training.skillId
+                                }
+                            },
+                            data: {
+                                status: 'personal_goal',
+                                // Optionally recalculate gap based on original desired level
+                                gapPercentage: calculateGapPercentage(
+                                    skillMatrix.desiredLevel,
+                                    skillMatrix.currentLevel
+                                )
+                            }
+                        })
+                    } else {
+                        // If it was created only for training, delete it
+                        await tx.skillMatrix.delete({
+                            where: {
+                                userId_skillId: {
+                                    userId: assignment.userId,
+                                    skillId: assignment.training.skillId
+                                }
+                            }
+                        })
+                    }
+                }
+
+                // Delete any draft assessments for this training's skill by the assessment owner
+                await tx.assessment.deleteMany({
+                    where: {
+                        skillId: assignment.training.skillId,
+                        trainingId: assignment.trainingId,
+                        status: 'DRAFT'
+                    }
+                })
+            }
+
+            // Delete the training assignment
+            await tx.trainingAssignment.delete({
+                where: { id: assignmentId }
+            })
+
+            return { success: true }
+        })
+
+        revalidatePath('/employee/skill-gaps')
+        revalidatePath('/employee/assessment-duties')
+        revalidatePath('/admin/tna')
+        revalidatePath('/manager/assign-training')
+        
+        return result
+    } catch (error) {
+        console.error('Delete training assignment error:', error)
+        return { success: false, error: 'Failed to delete training assignment' }
+    }
 }

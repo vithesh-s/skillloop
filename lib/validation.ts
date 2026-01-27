@@ -343,6 +343,7 @@ export const trainingAssignmentSchema = z.object({
     userIds: z.array(z.string()).min(1, 'At least one user is required'),
     trainerId: z.string().optional(),
     mentorId: z.string().optional(),
+    targetLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
     startDate: z.coerce.date(),
     targetCompletionDate: z.coerce.date(),
 }).refine(
@@ -352,6 +353,7 @@ export const trainingAssignmentSchema = z.object({
 
 export const bulkTrainingAssignmentSchema = z.object({
     trainingId: z.string(),
+    targetLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
     assignments: z.array(z.object({
         userId: z.string(),
         trainerId: z.string().optional(),
@@ -518,3 +520,50 @@ export const mentorCommentSchema = z.object({
 })
 
 export type MentorCommentInput = z.infer<typeof mentorCommentSchema>
+
+// ============================================================================
+// FEEDBACK VALIDATION SCHEMAS
+// ============================================================================
+
+export const feedbackSchema = z.object({
+    assignmentId: z.string().min(1, 'Assignment ID is required'),
+    likeMost: z.string().min(1, 'This field is required').max(1000, 'Maximum 1000 characters'),
+    keyLearnings: z.string().min(1, 'This field is required').max(1000, 'Maximum 1000 characters'),
+    confusingTopics: z.string().max(1000, 'Maximum 1000 characters').optional(),
+    materialHelpful: z.number().int().min(1).max(5, 'Rating must be between 1 and 5'),
+    interactiveEngaging: z.number().int().min(1).max(5, 'Rating must be between 1 and 5'),
+    trainerAnswered: z.number().int().min(1).max(5, 'Rating must be between 1 and 5'),
+    qualityRating: z.enum(['Excellent', 'Good', 'Average', 'Below Average']),
+    contentSatisfaction: z.number().int().min(1).max(5, 'Rating must be between 1 and 5'),
+    competentConfident: z.string().min(1, 'This field is required').max(1000, 'Maximum 1000 characters'),
+    suggestions: z.string().max(1000, 'Maximum 1000 characters').optional(),
+})
+
+export const feedbackFilterSchema = z.object({
+    dateFrom: z.string().optional().transform(str => str ? new Date(str) : undefined),
+    dateTo: z.string().optional().transform(str => str ? new Date(str) : undefined),
+    department: z.string().optional(),
+    trainingMode: z.enum(['ONLINE', 'OFFLINE']).optional(),
+    ratingMin: z.coerce.number().min(1).max(5).optional(),
+    ratingMax: z.coerce.number().min(1).max(5).optional(),
+    qualityRating: z.enum(['Excellent', 'Good', 'Average', 'Below Average']).optional(),
+}).refine(
+    (data) => {
+        if (data.dateFrom && data.dateTo) {
+            return data.dateTo >= data.dateFrom
+        }
+        return true
+    },
+    { message: 'End date must be after start date' }
+).refine(
+    (data) => {
+        if (data.ratingMin && data.ratingMax) {
+            return data.ratingMax >= data.ratingMin
+        }
+        return true
+    },
+    { message: 'Maximum rating must be greater than or equal to minimum rating' }
+)
+
+export type FeedbackInput = z.infer<typeof feedbackSchema>
+export type FeedbackFilterInput = z.infer<typeof feedbackFilterSchema>

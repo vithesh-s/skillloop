@@ -56,6 +56,7 @@ enum TrainingStatus {
 
 enum CompetencyLevel {
   BEGINNER
+  BASIC
   INTERMEDIATE
   ADVANCED
   EXPERT
@@ -87,6 +88,43 @@ enum NotificationType {
   PROOF_SUBMITTED
 }
 
+enum EmployeeType {
+  NEW_EMPLOYEE
+  EXISTING_EMPLOYEE
+}
+
+enum JourneyStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  PAUSED
+}
+
+enum PhaseType {
+  // New Employee (Configurable phases - admin can add/skip)
+  INDUCTION_INITIAL_ASSESSMENT
+  INDUCTION_TRAINING
+  SKILL_ASSESSMENT
+  TNA_GENERATION
+  PROGRESS_TRACKING
+  FEEDBACK_COLLECTION
+  POST_ASSESSMENT
+  
+  // Existing Employee (Auto-updated)
+  ROLE_ASSESSMENT
+  TRAINING_ASSIGNMENT
+  TRAINING_EXECUTION
+  RE_ASSESSMENT
+  MATRIX_UPDATE
+}
+
+enum PhaseStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -108,6 +146,12 @@ model User {
   dateOfJoining  DateTime  @default(now())
   resigned       Boolean   @default(false)
   level          Int?
+  
+  // Employee Lifecycle Fields
+  employeeType              EmployeeType?
+  journeyStatus             JourneyStatus @default(NOT_STARTED)
+  currentPhaseId            String?
+  inductionStartDate        DateTime?
   
   // Profile fields
   bio            String?
@@ -140,6 +184,12 @@ model User {
   assessmentAssignments AssessmentAssignment[] 
   assignedAssessments   AssessmentAssignment[] @relation("AssignedBy")
   ownedTrainingAssessments Training[]          @relation("TrainingAssessmentOwner")
+
+  // Journey relations
+  journey                   EmployeeJourney?
+  currentPhase              JourneyPhase? @relation("CurrentPhase", fields: [currentPhaseId], references: [id], onDelete: SetNull)
+  phasesAsMentor            JourneyPhase[] @relation("PhaseMentor")
+  journeyActivities         JourneyActivity[]
 
   // NextAuth.js relations
   accounts Account[]
@@ -641,3 +691,71 @@ model RoleCompetency {
   @@index([priority])
 }
 
+// 21. EmployeeJourney - Main journey tracker
+model EmployeeJourney {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  employeeType    EmployeeType
+  status          JourneyStatus @default(NOT_STARTED)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cycleNumber     Int           @default(1) // For existing employees
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phases          JourneyPhase[]
+  activities      JourneyActivity[]
+  
+  @@index([userId, status])
+}
+
+// 22. JourneyPhase - Configurable phases
+model JourneyPhase {
+  id                    String      @id @default(cuid())
+  journeyId             String
+  phaseType             PhaseType
+  phaseNumber           Int
+  title                 String
+  description           String?
+  durationDays          Int         @default(3)
+  status                PhaseStatus @default(NOT_STARTED)
+  startedAt             DateTime?
+  completedAt           DateTime?
+  dueDate               DateTime?
+  
+  // Optional mentor per phase
+  mentorId              String?
+  
+  // Linked entities (auto-tracked)
+  assessmentId          String?
+  trainingAssignmentId  String?
+  
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  
+  journey               EmployeeJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  mentor                User?           @relation("PhaseMentor", fields: [mentorId], references: [id])
+  currentUsers          User[]          @relation("CurrentPhase")
+  
+  @@unique([journeyId, phaseNumber])
+  @@index([journeyId, status])
+}
+
+// 23. JourneyActivity - Activity log
+model JourneyActivity {
+  id              String          @id @default(cuid())
+  journeyId       String
+  phaseNumber     Int?
+  activityType    String          // PHASE_AUTO_COMPLETED, MENTOR_ASSIGNED, etc.
+  title           String
+  description     String?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+  
+  journey         EmployeeJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  userId          String?
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([journeyId, createdAt])
+}

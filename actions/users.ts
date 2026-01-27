@@ -29,6 +29,10 @@ export async function createUser(
     };
   }
 
+  const employeeType = formData.get("employeeType") as string | null;
+  const initJourney = formData.get("initJourney") === "true";
+  const customPhasesStr = formData.get("customPhases") as string | null;
+
   const validatedFields = userSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -45,11 +49,12 @@ export async function createUser(
   }
 
   try {
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name: validatedFields.data.name,
         email: validatedFields.data.email,
         systemRoles: validatedFields.data.systemRoles,
+        employeeType: employeeType as any || null,
         // Default values for other fields
         employeeNo: validatedFields.data.employeeNo,
         designation: validatedFields.data.designation,
@@ -59,6 +64,31 @@ export async function createUser(
         roleId: validatedFields.data.roleId,
       },
     });
+
+    // Initialize journey if requested and employee type is set
+    if (initJourney && employeeType && (employeeType === "NEW_EMPLOYEE" || employeeType === "EXISTING_EMPLOYEE")) {
+      const { initializeJourney } = await import("@/lib/journey-engine");
+      try {
+        // Parse custom phases if provided
+        let customPhases;
+        if (customPhasesStr) {
+          try {
+            customPhases = JSON.parse(customPhasesStr);
+          } catch (e) {
+            console.error("Failed to parse custom phases:", e);
+          }
+        }
+        
+        await initializeJourney(
+          newUser.id,
+          employeeType as "NEW_EMPLOYEE" | "EXISTING_EMPLOYEE",
+          customPhases
+        );
+      } catch (error) {
+        console.error("Failed to initialize journey:", error);
+        // Don't fail the user creation if journey initialization fails
+      }
+    }
 
     revalidatePath("/admin/users");
 
@@ -175,6 +205,7 @@ export async function getUsers(params?: {
   search?: string;
   page?: number;
   pageSize?: number;
+  employeeType?: string;
 }) {
   const session = await auth();
 
@@ -190,6 +221,10 @@ export async function getUsers(params?: {
 
   if (params?.role) {
     where.systemRoles = { has: params.role };
+  }
+
+  if (params?.employeeType) {
+    where.employeeType = params.employeeType;
   }
 
   if (params?.search) {
@@ -212,6 +247,32 @@ export async function getUsers(params?: {
           select: {
             name: true,
             department: true,
+          },
+        },
+        journey: {
+          include: {
+            _count: {
+              select: {
+                phases: true,
+              },
+            },
+            phases: {
+              where: {
+                status: "COMPLETED",
+              },
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+        currentPhase: {
+          select: {
+            id: true,
+            title: true,
+            phaseNumber: true,
+            phaseType: true,
+            status: true,
           },
         },
       },

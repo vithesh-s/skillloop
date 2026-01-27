@@ -127,7 +127,8 @@ export function AssessmentsTable({
           </TableHeader>
           <TableBody>
             {assessments.length === 0 ? (
-              <TableRow>8} className="text-center py-8 text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No assessments found
                 </TableCell>
               </TableRow>
@@ -150,8 +151,7 @@ export function AssessmentsTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {assessment.creator.name || assessment.creator.email}sment.isPreAssessment ? "Pre" : "Post"}
-                    </Badge>
+                    {assessment.creator.name || assessment.creator.email}
                   </TableCell>
                   <TableCell className="text-center">{assessment.duration} min</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>

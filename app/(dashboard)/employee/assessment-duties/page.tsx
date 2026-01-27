@@ -1,14 +1,14 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
+import { db as prisma } from '@/lib/db'
 import { AssessmentDutiesClient } from '@/components/dashboard/assessments/AssessmentDutiesClient'
 
 export default async function AssessmentDutiesPage() {
     const session = await auth()
     if (!session?.user) redirect('/login')
 
-    // Fetch trainings where the user is the assessment owner and skills
-    const [ownedTrainings, skills] = await Promise.all([
+    // Fetch trainings where the user is the assessment owner, skills, draft assessments, and all user's assessments
+    const [ownedTrainings, skills, draftAssessments, allAssessments] = await Promise.all([
         prisma.training.findMany({
             where: {
                 assessmentOwnerId: session.user.id
@@ -50,8 +50,59 @@ export default async function AssessmentDutiesPage() {
                 category: true,
             },
             orderBy: { name: 'asc' }
+        }),
+        prisma.assessment.findMany({
+            where: {
+                createdById: session.user.id,
+                status: 'DRAFT'
+            },
+            include: {
+                skill: {
+                    select: {
+                        name: true,
+                        category: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                },
+                _count: {
+                    select: {
+                        questions: true
+                    }
+                }
+            },
+            orderBy: {
+                updatedAt: 'desc'
+            }
+        }),
+        prisma.assessment.findMany({
+            where: {
+                createdById: session.user.id
+            },
+            select: {
+                id: true,
+                title: true,
+                status: true,
+                skillId: true,
+                _count: {
+                    select: {
+                        questions: true
+                    }
+                }
+            }
         })
     ])
+
+    // Map assessments to trainings by skillId
+    const trainingAssessments = new Map()
+    ownedTrainings.forEach(training => {
+        const assessment = allAssessments.find(a => a.skillId === training.skillId)
+        if (assessment) {
+            trainingAssessments.set(training.id, assessment)
+        }
+    })
 
     return (
         <div className="space-y-6">
@@ -62,7 +113,12 @@ export default async function AssessmentDutiesPage() {
                 </p>
             </div>
 
-            <AssessmentDutiesClient ownedTrainings={ownedTrainings} skills={skills} />
+            <AssessmentDutiesClient 
+                ownedTrainings={ownedTrainings} 
+                skills={skills} 
+                draftAssessments={draftAssessments}
+                trainingAssessments={Object.fromEntries(trainingAssessments)}
+            />
         </div>
     )
 }

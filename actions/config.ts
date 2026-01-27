@@ -96,3 +96,92 @@ export async function getSystemConfig() {
 
     return configObject;
 }
+
+// ============================================================================
+// REMINDER CONFIGURATION
+// ============================================================================
+
+export async function getReminderConfig() {
+    const session = await auth();
+
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MANAGER'].includes(role))) {
+        throw new Error("Unauthorized");
+    }
+
+    const defaults = {
+        FEEDBACK_REMINDER_ENABLED: 'true',
+        FEEDBACK_REMINDER_DAYS: '7',
+        ASSESSMENT_REMINDER_DAYS: '3',
+        PROGRESS_REMINDER_DAYS: '7',
+    }
+
+    const configs = await prisma.systemConfig.findMany({
+        where: {
+            key: {
+                in: Object.keys(defaults),
+            },
+        },
+    })
+
+    const configObject: Record<string, string> = { ...defaults }
+    configs.forEach((config) => {
+        configObject[config.key] = config.value
+    })
+
+    return configObject
+}
+
+export async function updateReminderConfig(settings: {
+    FEEDBACK_REMINDER_ENABLED?: boolean
+    FEEDBACK_REMINDER_DAYS?: number
+    ASSESSMENT_REMINDER_DAYS?: number
+    PROGRESS_REMINDER_DAYS?: number
+}) {
+    const session = await auth()
+
+    if (!session?.user?.systemRoles?.includes("ADMIN")) {
+        throw new Error("Unauthorized")
+    }
+
+    try {
+        const updates = []
+
+        for (const [key, value] of Object.entries(settings)) {
+            updates.push(
+                prisma.systemConfig.upsert({
+                    where: { key },
+                    update: { value: String(value) },
+                    create: { 
+                        key, 
+                        value: String(value),
+                        description: getConfigDescription(key),
+                    },
+                })
+            )
+        }
+
+        await Promise.all(updates)
+        revalidatePath("/admin/config")
+
+        return {
+            success: true,
+            message: "Reminder configuration updated successfully",
+        }
+    } catch (error) {
+        console.error("Failed to update reminder configuration:", error)
+        return {
+            success: false,
+            error: "Failed to update reminder configuration",
+        }
+    }
+}
+
+function getConfigDescription(key: string): string {
+    const descriptions: Record<string, string> = {
+        FEEDBACK_REMINDER_ENABLED: 'Enable automatic feedback reminders',
+        FEEDBACK_REMINDER_DAYS: 'Days after training completion to send feedback reminder',
+        ASSESSMENT_REMINDER_DAYS: 'Days before assessment due date to send reminder',
+        PROGRESS_REMINDER_DAYS: 'Days without progress update to send reminder',
+    }
+    return descriptions[key] || ''
+}

@@ -19,7 +19,7 @@ export default function Error({
     }, [error])
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[600px] p-6">
+        <div className="flex flex-col items-center justify-center min-h-150 p-6">
             <Card className="max-w-md w-full">
                 <CardHeader>
                     <div className="flex items-center gap-2 text-destructive">

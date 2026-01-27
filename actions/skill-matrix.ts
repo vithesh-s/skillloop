@@ -43,9 +43,10 @@ function levelToNumeric(level: CompetencyLevel | null): number {
   if (!level) return 0
   const mapping: Record<CompetencyLevel, number> = {
     BEGINNER: 1,
-    INTERMEDIATE: 2,
-    ADVANCED: 3,
-    EXPERT: 4,
+    BASIC: 2,
+    INTERMEDIATE: 3,
+    ADVANCED: 4,
+    EXPERT: 5,
   }
   return mapping[level]
 }
@@ -53,9 +54,10 @@ function levelToNumeric(level: CompetencyLevel | null): number {
 function numericToLevel(value: number): CompetencyLevel | null {
   const mapping: Record<number, CompetencyLevel> = {
     1: 'BEGINNER',
-    2: 'INTERMEDIATE',
-    3: 'ADVANCED',
-    4: 'EXPERT',
+    2: 'BASIC',
+    3: 'INTERMEDIATE',
+    4: 'ADVANCED',
+    5: 'EXPERT',
   }
   return mapping[value] || null
 }
@@ -441,12 +443,12 @@ export async function addUserSkill(
       return { success: false, message: "User account not found. Please log in again." }
     }
 
-    // Convert numeric levels (1-5) to CompetencyLevel enum (4 levels)
-    // Mapping: 1=BEGINNER, 2=BEGINNER/INTERMEDIATE, 3=INTERMEDIATE, 4=ADVANCED, 5=EXPERT
+    // Convert numeric levels (1-5) to CompetencyLevel enum (5 levels)
+    // Mapping: 1=BEGINNER, 2=BASIC, 3=INTERMEDIATE, 4=ADVANCED, 5=EXPERT
     const levelMapping: Record<number, CompetencyLevel> = {
       1: 'BEGINNER',
-      2: 'INTERMEDIATE',  // "Basic" maps to INTERMEDIATE
-      3: 'INTERMEDIATE',  // "Intermediate" 
+      2: 'BASIC',
+      3: 'INTERMEDIATE',
       4: 'ADVANCED',
       5: 'EXPERT',
     }
@@ -490,7 +492,7 @@ export async function addUserSkill(
             name: validated.customSkillName,
             categoryId: otherCategory.id,
             description: validated.notes || `Custom skill added by ${session.user.name}`,
-            proficiencyLevels: ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
+            proficiencyLevels: ['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
           }
         })
       }
@@ -516,9 +518,8 @@ export async function addUserSkill(
       return { success: false, message: "This skill is already in your skill matrix" }
     }
 
-    // When employee adds their own skill, no gap calculation
-    // Gap percentage is only relevant for role-assigned skills
-    const gapPercentage = 0
+    // Calculate gap percentage properly for personal goals
+    const gapPercentage = calculateGapPercentageInternal(desiredLevel, currentLevel)
     const status = 'personal_goal'
 
     // Create skill matrix entry

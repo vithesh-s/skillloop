@@ -17,7 +17,7 @@ interface SendVerificationRequestParams {
 export interface SendEmailParams {
   to: string
   subject: string
-  template: 'training-assigned' | 'calendar-updated' | 'assessment-due' | 'general'
+  template: 'training-assigned' | 'calendar-updated' | 'assessment-due' | 'general' | 'feedback-reminder' | 'progress-reminder' | 'post-assessment-scheduled' | 'skill-progression'
   data: any
 }
 
@@ -103,6 +103,93 @@ function getTemplate(template: string, data: any) {
             
             <div style="text-align: center;">
                  <a href="${process.env.NEXTAUTH_URL}/employee/assessments" class="button">Take Assessment</a>
+            </div>
+        `;
+  } else if (template === 'feedback-reminder') {
+    body = `
+            <h2>Training Feedback Reminder</h2>
+            <p>Hello ${data.userName},</p>
+            <p>We noticed you haven't submitted feedback for the training <strong>"${data.trainingName}"</strong> that you completed on ${data.completionDate}.</p>
+            
+            <p>Your feedback is invaluable in helping us improve our training programs. It will only take a few minutes!</p>
+
+            <div style="text-align: center;">
+                <a href="${data.feedbackUrl}" class="button">Submit Feedback Now</a>
+            </div>
+
+            <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+                This is a friendly reminder. We appreciate your time and insights!
+            </p>
+        `;
+  } else if (template === 'progress-reminder') {
+    body = `
+            <h2>Training Progress Update Reminder</h2>
+            <p>Hello ${data.userName},</p>
+            <p>It's time to submit your weekly progress update for the ongoing training <strong>"${data.trainingName}"</strong>.</p>
+            
+            <table class="info-table">
+                <tr><td class="label">Last Update:</td><td>${data.daysSinceUpdate} days ago</td></tr>
+                <tr><td class="label">Your Mentor:</td><td>${data.mentorName}</td></tr>
+            </table>
+
+            <p>Keeping your mentor informed helps ensure you get the support you need throughout your training journey.</p>
+
+            <div style="text-align: center;">
+                <a href="${data.progressUrl}" class="button">Submit Progress Update</a>
+            </div>
+        `;
+  } else if (template === 'post-assessment-scheduled') {
+    body = `
+            <h2>🎉 Training Completed - Assessment Scheduled</h2>
+            <p>Hello ${data.userName},</p>
+            <p>Congratulations on completing the training <strong>"${data.trainingName}"</strong>!</p>
+            
+            <p>To evaluate your learning and track your skill progression, a post-training assessment has been scheduled:</p>
+
+            <table class="info-table">
+                <tr><td class="label">Assessment Date:</td><td>${data.assessmentDate}</td></tr>
+                <tr><td class="label">Skill:</td><td>${data.skillName}</td></tr>
+            </table>
+
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #1f2937;">📚 Preparation Tips:</h3>
+                <ul style="margin: 0; padding-left: 20px; color: #4b5563;">
+                    <li>Review your training materials and notes</li>
+                    <li>Practice the concepts you learned</li>
+                    <li>Revisit any challenging topics</li>
+                    <li>Prepare your questions in advance</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="${process.env.NEXTAUTH_URL}/employee/assessments" class="button">View Assessment Details</a>
+            </div>
+
+            <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+                You'll receive another reminder 3 days before the assessment date. Good luck!
+            </p>
+        `;
+  } else if (template === 'skill-progression') {
+    body = `
+            <h2>🌟 Skill Level Updated</h2>
+            <p>Hello ${data.userName},</p>
+            <p>Great news! Your skill level has been updated based on your recent assessment performance.</p>
+            
+            <table class="info-table">
+                <tr><td class="label">Skill:</td><td>${data.skillName}</td></tr>
+                <tr><td class="label">New Level:</td><td><strong style="color: #10b981;">${data.newLevel}</strong></td></tr>
+                <tr><td class="label">Pre-Assessment:</td><td>${data.preScore}%</td></tr>
+                <tr><td class="label">Post-Assessment:</td><td>${data.postScore}%</td></tr>
+                <tr><td class="label">Improvement:</td><td><strong style="color: #3b82f6;">+${data.improvement}%</strong></td></tr>
+            </table>
+
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px; margin: 20px 0; color: white; text-align: center;">
+                <h3 style="margin: 0 0 10px 0; font-size: 20px;">🎯 Excellent Progress!</h3>
+                <p style="margin: 0; font-size: 16px;">Keep up the great work on your learning journey!</p>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="${process.env.NEXTAUTH_URL}/employee/skill-gaps" class="button">View Skill Matrix</a>
             </div>
         `;
   } else {

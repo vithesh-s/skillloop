@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useActionState } from "react"
-import { createAssessment, updateAssessment, addQuestion, publishAssessment } from "@/actions/assessments"
+import { createAssessment, updateAssessment, addQuestion, publishAssessment, getAssessmentById } from "@/actions/assessments"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,6 +31,8 @@ interface CreateAssessmentFormProps {
   skills: SkillWithCategory[]
   initialAssessment?: any
   basePath?: string
+  initialTitle?: string
+  preselectedSkillId?: string
 }
 
 const initialState = {
@@ -39,17 +41,42 @@ const initialState = {
   success: false,
 }
 
-export function CreateAssessmentForm({ skills, initialAssessment, basePath = '/admin/assessments' }: CreateAssessmentFormProps) {
+export function CreateAssessmentForm({ 
+  skills, 
+  initialAssessment, 
+  basePath = '/admin/assessments',
+  initialTitle,
+  preselectedSkillId 
+}: CreateAssessmentFormProps) {
   const [step, setStep] = useState(initialAssessment ? 2 : 1)
   const [assessmentId, setAssessmentId] = useState<string | null>(initialAssessment?.id || null)
   const [isPreAssessment, setIsPreAssessment] = useState(initialAssessment?.isPreAssessment || false)
   const [lastUpdate, setLastUpdate] = useState(0)
+  const [currentTotal, setCurrentTotal] = useState(0)
+  const [targetTotal, setTargetTotal] = useState(initialAssessment?.totalMarks || 0)
+  const [questionCount, setQuestionCount] = useState(initialAssessment?.questions?.length || 0)
   const router = useRouter()
 
   const handleUpdate = () => {
     setLastUpdate(prev => prev + 1)
     router.refresh()
   }
+
+  // Fetch assessment data to calculate totals
+  useEffect(() => {
+    if (assessmentId) {
+      const fetchAssessment = async () => {
+        const data = await getAssessmentById(assessmentId)
+        if (data) {
+          const total = data.questions?.reduce((sum: number, q: any) => sum + q.marks, 0) || 0
+          setCurrentTotal(total)
+          setTargetTotal(data.totalMarks)
+          setQuestionCount(data.questions?.length || 0)
+        }
+      }
+      fetchAssessment()
+    }
+  }, [assessmentId, lastUpdate])
 
   const [state, formAction, pending] = useActionState(
     initialAssessment 
@@ -97,7 +124,7 @@ export function CreateAssessmentForm({ skills, initialAssessment, basePath = '/a
               <Input
                 id="title"
                 name="title"
-                defaultValue={initialAssessment?.title}
+                defaultValue={initialAssessment?.title || initialTitle}
                 placeholder="e.g., React Fundamentals Assessment"
                 required
               />
@@ -122,7 +149,7 @@ export function CreateAssessmentForm({ skills, initialAssessment, basePath = '/a
 
             <div className="space-y-2">
               <Label htmlFor="skillId">Skill*</Label>
-              <Select name="skillId" defaultValue={initialAssessment?.skillId} required>
+              <Select name="skillId" defaultValue={initialAssessment?.skillId || preselectedSkillId} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a skill" />
                 </SelectTrigger>
@@ -270,13 +297,50 @@ export function CreateAssessmentForm({ skills, initialAssessment, basePath = '/a
           </CardContent>
         </Card>
 
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={() => router.push("/admin/assessments")}>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Total Questions:</span>
+                <span className="font-semibold">{questionCount}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Current Total Marks:</span>
+                <span className={`font-semibold ${currentTotal === targetTotal ? 'text-green-600' : currentTotal > targetTotal ? 'text-red-600' : 'text-orange-600'}`}>
+                  {currentTotal} / {targetTotal}
+                </span>
+              </div>
+              {currentTotal !== targetTotal && (
+                <Alert variant={currentTotal > targetTotal ? 'destructive' : 'default'}>
+                  <AlertDescription>
+                    {currentTotal > targetTotal 
+                      ? `Total marks exceed target by ${currentTotal - targetTotal}. Remove questions or adjust marks.`
+                      : `Need ${targetTotal - currentTotal} more marks to match the target total.`
+                    }
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-between items-center">
+          <Button variant="outline" onClick={() => router.push(basePath)}>
             Save as Draft
           </Button>
-          <Button onClick={handlePublish}>
-            Publish Assessment
-          </Button>
+          <div className="flex items-center gap-3">
+            {currentTotal !== targetTotal && (
+              <span className="text-sm text-muted-foreground">
+                Match marks total to publish
+              </span>
+            )}
+            <Button 
+              onClick={handlePublish}
+              disabled={currentTotal !== targetTotal || questionCount === 0}
+            >
+              Publish Assessment
+            </Button>
+          </div>
         </div>
       </div>
     )

@@ -25,7 +25,7 @@ export default async function ReviewAssignmentPage({ params }: PageProps) {
 
     if (!result.success || !result.data) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-6">
+            <div className="flex flex-col items-center justify-center min-h-100 gap-4 p-6">
                 <p className="text-lg text-muted-foreground">{result.error || 'Failed to load assignment'}</p>
                 <Link href="/trainer/review-progress">
                     <Button variant="outline">

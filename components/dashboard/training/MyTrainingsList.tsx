@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { TrainingCompletionDialog } from './TrainingCompletionDialog'
 import { format } from 'date-fns'
-import { RiCalendarLine, RiTimeLine, RiCheckboxCircleLine, RiPlayCircleLine, RiCloseCircleLine, RiFileUploadLine, RiMessageLine } from '@remixicon/react'
+import { RiCalendarLine, RiTimeLine, RiCheckboxCircleLine, RiPlayCircleLine, RiCloseCircleLine, RiFileUploadLine, RiMessageLine, RiStarLine } from '@remixicon/react'
 
 interface MyTrainingsListProps {
     assignments: any[] // Simplified typing
@@ -178,13 +178,18 @@ export function MyTrainingsList({ assignments }: MyTrainingsListProps) {
                                     )}
                                     {assignment.status === 'COMPLETED' && (
                                         <>
+                                            <Link href={`/employee/training/${assignment.id}/feedback`}>
+                                                <Button size="sm" className="gap-2">
+                                                    <RiStarLine className="h-4 w-4" />
+                                                    Give Feedback
+                                                </Button>
+                                            </Link>
                                             <Button size="sm" variant="outline">View Certificate</Button>
                                             {isOnline && (
                                                 <Link href={`/employee/training/${assignment.id}/progress`}>
                                                     <Button size="sm" variant="outline">View History</Button>
                                                 </Link>
                                             )}
-                                            <Button size="sm" variant="outline">View Details</Button>
                                         </>
                                     )}
                                 </div>

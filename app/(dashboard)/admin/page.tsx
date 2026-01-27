@@ -2,6 +2,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { JourneyStatsCard } from "@/components/journeys/JourneyStatsCard";
+import { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   RiUserLine,
   RiBookLine,
@@ -137,6 +140,11 @@ export default async function AdminDashboard() {
           );
         })}
       </div>
+
+      {/* Employee Journey Stats */}
+      <Suspense fallback={<Skeleton className="h-100 w-full" />}>
+        <JourneyStatsCard />
+      </Suspense>
 
       {/* Recent Activities */}
       <div className="grid gap-6 lg:grid-cols-2">
