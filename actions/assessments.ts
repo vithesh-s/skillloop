@@ -238,7 +238,7 @@ export async function publishAssessment(assessmentId: string): Promise<FormState
       return { message: "Assessment not found", success: false }
     }
 
-    const currentTotal = assessment.questions.reduce((sum, q) => sum + q.marks, 0)
+    const currentTotal = assessment.questions.reduce((sum: number, q) => sum + q.marks, 0)
 
     if (currentTotal !== assessment.totalMarks) {
       return {
