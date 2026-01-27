@@ -726,33 +726,314 @@ Create a `.env.local` file in the project root:
 
 ```env
 DATABASE_URL="postgresql://username:password@localhost:5432/skillloop?schema=public"
-├── Docs/                # Project documentation
-└── Data/                # Seed data files
+NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Email Configuration (Nodemailer)
+EMAIL_HOST="smtp.gmail.com"
+EMAIL_PORT="587"
+EMAIL_USER="your-email@gmail.com"
+EMAIL_PASSWORD="your-app-password"
+EMAIL_FROM="Skill Loop <noreply@skillloop.com>"
+
+# UploadThing (File Uploads)
+UPLOADTHING_SECRET="your-uploadthing-secret"
+UPLOADTHING_APP_ID="your-uploadthing-app-id"
 ```
 
-## Database Schema
+### Installation & Setup
 
-The database consists of **19 models** covering:
-- User management with hierarchical relationships
-- Skills catalog and competency frameworks
-- Assessments with multiple question types
-- Training programs (online/offline)
-- Progress tracking and attendance
-- Feedback and notifications
+1. **Clone the repository**:
+```bash
+git clone <repository-url>
+cd skillloop
+```
 
-See [prisma/README.md](prisma/README.md) for complete schema documentation.
+2. **Install dependencies**:
+```bash
+npm install
+```
 
-## Learn More
+3. **Setup database**:
+```bash
+# Generate Prisma Client
+npm run db:generate
 
-To learn more about Next.js, take a look at the following resources:
+# Run migrations
+npm run db:migrate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Seed database with demo data
+npm run db:seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Start development server**:
+```bash
+npm run dev
+```
 
-## Deploy on Vercel
+5. **Open browser**:
+```
+http://localhost:3000
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Database Commands
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# Generate Prisma Client (after schema changes)
+npm run db:generate
+
+# Create a new migration
+npm run db:migrate
+
+# Push schema changes (development only)
+npm run db:push
+
+# Seed database with demo data
+npm run db:seed
+
+# Open Prisma Studio (database GUI)
+npm run db:studio
+
+# Reset database (WARNING: deletes all data)
+npm run db:reset
+```
+
+### Default Demo Credentials
+
+After seeding the database, you can login with:
+
+**Admin Account**:
+- Email: `admin@skillloop.com`
+- Password: `Admin@123`
+
+**Manager Account**:
+- Email: `manager@skillloop.com`
+- Password: `Manager@123`
+
+**Trainer Account**:
+- Email: `trainer@skillloop.com`
+- Password: `Trainer@123`
+
+**Employee Account**:
+- Email: `employee@skillloop.com`
+- Password: `Employee@123`
+
+## 🚀 Key Features
+
+### 1. Skills Management
+- ✅ Hierarchical skills catalog with categories
+- ✅ Skill levels (Beginner → Intermediate → Advanced → Expert)
+- ✅ Personal vs. Assigned skills tracking
+- ✅ Competency matrix visualization
+- ✅ Skill gap analysis and recommendations
+- ✅ Learning resources per skill
+- ✅ Bulk skill assignment
+- ✅ CSV import/export
+
+### 2. Assessment System
+- ✅ Multiple question types (MCQ, T/F, Descriptive, Practice)
+- ✅ Auto-scoring for objective questions
+- ✅ Manual review for descriptive answers
+- ✅ Proof-based assessments with file upload
+- ✅ Configurable passing threshold
+- ✅ Attempt tracking and history
+- ✅ Real-time feedback
+- ✅ Certificate generation
+- ✅ Skill level updates based on results
+
+### 3. Training Management
+- ✅ Online training (self-paced with materials)
+- ✅ Offline training (instructor-led with scheduling)
+- ✅ Training proof submission & verification
+- ✅ Mentor review system
+- ✅ Progress tracking with timeline
+- ✅ Attendance marking (offline)
+- ✅ Training calendar integration
+- ✅ Material upload (videos, docs, links)
+- ✅ Training feedback collection
+- ✅ Certificate generation
+
+### 4. Employee Journey Management
+- ✅ 90-day onboarding plan for new employees
+- ✅ Cyclical journey for existing employees
+- ✅ 6-phase milestone structure
+- ✅ Phase-wise assessment linkage
+- ✅ Phase-wise training linkage
+- ✅ Mentor assignment per phase
+- ✅ Progress visualization
+- ✅ Activity timeline and logging
+- ✅ Automated notifications
+- ✅ Phase deadline tracking
+- ✅ Editable phase details (admin)
+
+### 5. Analytics & Reporting
+- ✅ Employee progress dashboards
+- ✅ Skill gap analysis
+- ✅ Training completion rates
+- ✅ Assessment performance metrics
+- ✅ Team-wide analytics (managers)
+- ✅ System-wide insights (admin)
+- ✅ Export capabilities
+
+### 6. Notifications & Communication
+- ✅ Email notifications for all key events
+- ✅ In-app notification center
+- ✅ Assignment notifications
+- ✅ Deadline reminders
+- ✅ Journey phase updates
+- ✅ Assessment result notifications
+- ✅ Training approval alerts
+
+### 7. User Management
+- ✅ Role-based access control (4 roles)
+- ✅ Manager-subordinate hierarchy
+- ✅ Bulk user import
+- ✅ User profile management
+- ✅ Department & designation tracking
+- ✅ Avatar upload
+- ✅ Journey assignment
+- ✅ Activity audit log
+
+## 🔧 Configuration
+
+### System Configuration (Admin Panel)
+
+Navigate to `/admin/config` to configure:
+
+- **Journey Configuration**: Default phase settings, durations
+- **Assessment Settings**: Passing thresholds, attempts allowed
+- **Training Settings**: Approval requirements, proof validation
+- **Notification Settings**: Email templates, notification rules
+- **Skill Matrix**: Competency levels, evaluation criteria
+
+## 📈 Monitoring & Maintenance
+
+### Health Checks
+- Database connectivity check: `/api/health`
+- Session validation: Built-in NextAuth
+- File upload status: UploadThing dashboard
+
+### Scheduled Tasks (CRON Jobs)
+- Daily journey progress updates
+- Weekly notification reminders
+- Monthly skill gap analysis
+- Quarterly competency reviews
+
+### Logs & Debugging
+- Server logs: Console output
+- Database queries: Prisma debug mode
+- Authentication logs: NextAuth debug
+- File uploads: UploadThing dashboard
+
+## 🧪 Testing
+
+### Manual Testing
+```bash
+# Run development server with debug
+npm run dev
+
+# Access test routes
+# - Login: http://localhost:3000/login
+# - Test Auth: http://localhost:3000/test-auth
+```
+
+### Database Testing
+```bash
+# Open Prisma Studio
+npm run db:studio
+
+# Test queries and relationships
+# View seed data
+```
+
+## 📦 Deployment
+
+### Vercel (Recommended)
+
+1. Push code to GitHub
+2. Import project in Vercel
+3. Set environment variables
+4. Deploy automatically
+
+### Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Stop containers
+docker-compose down
+```
+
+### Production Checklist
+
+- [ ] Set secure `NEXTAUTH_SECRET`
+- [ ] Configure production database
+- [ ] Set up email service
+- [ ] Configure file upload service
+- [ ] Enable HTTPS
+- [ ] Set up domain
+- [ ] Configure CORS if needed
+- [ ] Run migrations
+- [ ] Seed initial data
+- [ ] Test all user roles
+- [ ] Set up monitoring
+- [ ] Configure backups
+
+## 📚 Additional Resources
+
+### Documentation
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Prisma Documentation](https://www.prisma.io/docs)
+- [NextAuth.js Documentation](https://next-auth.js.org)
+- [shadcn/ui Components](https://ui.shadcn.com)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+
+### Internal Documentation
+- [Database Schema](prisma/README.md)
+- [PRD](Docs/skillloop_prd.md)
+- [Skill Logic](Docs/SKILL_LOGIC_QUICK_REFERENCE.md)
+- [Journey Flow](Docs/plan-phase7-training-calendar-&-scheduling.md)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📝 License
+
+This project is proprietary and confidential.
+
+## 🐛 Known Issues & Roadmap
+
+### Current Limitations
+- Single tenant only
+- Email-based authentication only (no SSO)
+- File uploads via UploadThing (external service)
+- No offline mobile app
+
+### Planned Features (Future)
+- [ ] Multi-tenant support
+- [ ] SSO integration (SAML, OAuth)
+- [ ] Mobile app (React Native)
+- [ ] Advanced analytics dashboard
+- [ ] AI-powered skill recommendations
+- [ ] Video conferencing integration
+- [ ] Gamification features
+- [ ] Custom branding per tenant
+- [ ] API for third-party integrations
+- [ ] Advanced reporting with exports
+
+## 💬 Support
+
+For questions, issues, or feature requests, please contact:
+- **Technical Support**: dev@skillloop.com
+- **Documentation**: [Docs](Docs/)
+- **Issues**: GitHub Issues
+
+---
+
+**Built with ❤️ using Next.js 16, React 19, and TypeScript**
