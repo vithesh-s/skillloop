@@ -308,7 +308,8 @@ function calculateGap(desired: CompetencyLevel, current: CompetencyLevel | null)
         [CompetencyLevel.INTERMEDIATE]: 2,
         [CompetencyLevel.ADVANCED]: 3,
         [CompetencyLevel.EXPERT]: 4,
-    };
+        BASIC: 1, // Handle BASIC level if it exists in the enum
+    } as Record<CompetencyLevel, number>;
 
     const desiredNum = levelValues[desired];
     const currentNum = current ? levelValues[current] : 0;

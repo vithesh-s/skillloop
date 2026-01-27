@@ -32,7 +32,7 @@ export default async function TrainingsPage() {
                     </Link>
                 </Button>
             </div>
-            <TrainingsTable trainings={trainings || []} />
+            <TrainingsTable trainings={trainings || []} userRole="trainer" />
         </div>
     )
 }

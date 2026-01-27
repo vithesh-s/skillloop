@@ -90,6 +90,12 @@ export async function createUser(
       }
     }
 
+    // Sync skills from assigned role
+    if (validatedFields.data.roleId) {
+      const { syncUserSkillsWithRole } = await import("./skill-matrix");
+      await syncUserSkillsWithRole(newUser.id, validatedFields.data.roleId);
+    }
+
     revalidatePath("/admin/users");
 
     return {
@@ -145,6 +151,12 @@ export async function updateUser(
       where: { id: userId },
       data,
     });
+
+    // Sync skills if role changed or re-saved
+    if (data.roleId) {
+      const { syncUserSkillsWithRole } = await import("./skill-matrix");
+      await syncUserSkillsWithRole(userId, data.roleId);
+    }
 
     revalidatePath("/admin/users");
 

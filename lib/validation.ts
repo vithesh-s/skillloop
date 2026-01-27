@@ -50,7 +50,7 @@ export const updateSkillSchema = skillSchema.extend({
 
 export const skillRequirementSchema = z.object({
     skillId: z.string(),
-    requiredLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+    requiredLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
     isMandatory: z.boolean(),
 })
 
@@ -125,7 +125,7 @@ export const questionSchema = z.object({
     options: z.array(z.string()).optional(),
     correctAnswer: z.string().optional(),
     marks: z.coerce.number().min(1, 'Marks must be at least 1'),
-    difficultyLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+    difficultyLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
 }).refine(
     (data) => {
         // MCQ must have at least 2 options and a correct answer
@@ -173,7 +173,8 @@ export const gradingSchema = z.object({
 export const skillMatrixSchema = z.object({
     userId: z.string().min(1, 'User is required'),
     skillId: z.string().min(1, 'Skill is required'),
-    desiredLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+    desiredLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+    currentLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
 }).refine(
     (data) => {
         // Ensure userId and skillId are valid CUIDs
@@ -185,13 +186,13 @@ export const skillMatrixSchema = z.object({
 export const updateDesiredLevelSchema = z.object({
     userId: z.string().cuid('Invalid user ID'),
     skillId: z.string().cuid('Invalid skill ID'),
-    desiredLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
-    currentLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
+    desiredLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+    currentLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
 }).refine(
     (data) => {
         // Ensure desired level is not lower than current level if current exists
         if (data.currentLevel) {
-            const levels = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
+            const levels = ['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']
             const desiredIdx = levels.indexOf(data.desiredLevel)
             const currentIdx = levels.indexOf(data.currentLevel)
             return desiredIdx >= currentIdx
@@ -238,7 +239,7 @@ export const batchSkillMatrixUpdateSchema = z.object({
     userId: z.string().cuid(),
     updates: z.array(z.object({
         skillId: z.string().cuid(),
-        desiredLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
+        desiredLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']),
     })).min(1, 'At least one update required').max(50, 'Maximum 50 updates per batch'),
 })
 
@@ -343,7 +344,7 @@ export const trainingAssignmentSchema = z.object({
     userIds: z.array(z.string()).min(1, 'At least one user is required'),
     trainerId: z.string().optional(),
     mentorId: z.string().optional(),
-    targetLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
+    targetLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
     startDate: z.coerce.date(),
     targetCompletionDate: z.coerce.date(),
 }).refine(
@@ -353,7 +354,7 @@ export const trainingAssignmentSchema = z.object({
 
 export const bulkTrainingAssignmentSchema = z.object({
     trainingId: z.string(),
-    targetLevel: z.enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
+    targetLevel: z.enum(['BEGINNER', 'BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXPERT']).optional(),
     assignments: z.array(z.object({
         userId: z.string(),
         trainerId: z.string().optional(),
@@ -506,9 +507,7 @@ export type ProofSubmissionInput = z.infer<typeof proofSubmissionSchema>
 
 export const proofReviewSchema = z.object({
     proofId: z.string().min(1, 'Proof ID is required'),
-    status: z.enum(['APPROVED', 'REJECTED'], {
-        required_error: 'Status is required'
-    }),
+    status: z.enum(['APPROVED', 'REJECTED']),
     reviewerComments: z.string().optional()
 })
 

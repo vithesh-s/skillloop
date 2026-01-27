@@ -16,6 +16,18 @@ export enum PhaseType {
     MATRIX_UPDATE = "MATRIX_UPDATE"
 }
 
+export enum EmployeeType {
+    NEW_EMPLOYEE = "NEW_EMPLOYEE",
+    EXISTING_EMPLOYEE = "EXISTING_EMPLOYEE"
+}
+
+export enum PhaseStatus {
+    NOT_STARTED = "NOT_STARTED",
+    IN_PROGRESS = "IN_PROGRESS",
+    COMPLETED = "COMPLETED",
+    OVERDUE = "OVERDUE"
+}
+
 export interface PhaseConfig {
     phaseType: PhaseType;
     title: string;

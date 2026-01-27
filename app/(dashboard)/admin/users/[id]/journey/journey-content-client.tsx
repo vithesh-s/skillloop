@@ -19,7 +19,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
-import { EmployeeType } from "@prisma/client";
+import { EmployeeType } from "@/lib/journey-constants";
 
 interface JourneyContentClientProps {
   journey: any;

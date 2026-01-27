@@ -371,7 +371,7 @@ export async function createSkillMatrixEntry(
     });
 
     if (!userExists) {
-      return { success: false, message: "User does not exist" };
+      throw new Error("User does not exist");
     }
 
     // Check if skill matrix entry already exists
@@ -396,14 +396,33 @@ export async function createSkillMatrixEntry(
       throw new Error("Skill not found")
     }
 
+    const currentLevel = validated.currentLevel || null
+
+    // Calculate initial gap and status
+    const thresholds = await getGapThresholds()
+    const gapPercentage = calculateGapPercentageInternal(validated.desiredLevel, currentLevel)
+
+    // Check for existing training to set correct initial status
+    const hasTraining = await prisma.trainingAssignment.count({
+      where: {
+        userId: validated.userId,
+        training: { skillId: validated.skillId },
+        status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+      }
+    }) > 0
+
+    // If we have a current level, we can determine a real status
+    // If no current level (gap=100), status defaults to 'not_started' or 'gap_identified' via determineStatus
+    const status = determineStatus(gapPercentage, hasTraining)
+
     const entry = await prisma.skillMatrix.create({
       data: {
         userId: validated.userId,
         skillId: validated.skillId,
         desiredLevel: validated.desiredLevel,
-        currentLevel: null,
-        gapPercentage: 100,
-        status: 'not_started',
+        currentLevel: currentLevel,
+        gapPercentage: gapPercentage,
+        status: status,
       }
     })
 
@@ -696,6 +715,100 @@ export async function batchUpdateDesiredLevels(
   } catch (error) {
     console.error('Failed to batch update desired levels:', error)
     throw new Error("Failed to update multiple skills")
+  }
+}
+
+export async function syncUserSkillsWithRole(
+  userId: string,
+  roleId: string
+): Promise<void> {
+  const session = await auth()
+  // Internal function, but verify session exists for safety unless called from internal context
+  // We'll rely on caller permissions (users.ts checks admin)
+
+  try {
+    // 1. Get competencies for the role
+    const roleCompetencies = await prisma.roleCompetency.findMany({
+      where: { roleId },
+      include: { skill: true }
+    })
+
+    if (roleCompetencies.length === 0) return
+
+    // 2. Get existing skill matrix for user
+    const existingMatrix = await prisma.skillMatrix.findMany({
+      where: { userId }
+    })
+
+    const matrixMap = new Map(existingMatrix.map(em => [em.skillId, em]))
+    const thresholds = await getGapThresholds()
+
+    // 3. Process each competency
+    const updates = []
+
+    for (const competency of roleCompetencies) {
+      // Map string level to enum
+      const requiredLevel = competency.requiredLevel as CompetencyLevel
+      const existing = matrixMap.get(competency.skillId)
+
+      if (existing) {
+        // Update desired level if different
+        if (existing.desiredLevel !== requiredLevel) {
+          const newGap = calculateGapPercentageInternal(requiredLevel, existing.currentLevel)
+
+          // Check training status for status update
+          const hasTraining = await prisma.trainingAssignment.count({
+            where: {
+              userId,
+              training: { skillId: competency.skillId },
+              status: { in: ['ASSIGNED', 'IN_PROGRESS'] }
+            }
+          }) > 0
+
+          const newStatus = determineStatus(newGap, hasTraining)
+
+          updates.push(
+            prisma.skillMatrix.update({
+              where: { id: existing.id },
+              data: {
+                desiredLevel: requiredLevel,
+                gapPercentage: newGap,
+                status: newStatus,
+                updatedAt: new Date()
+              }
+            })
+          )
+        }
+      } else {
+        // Create new entry
+        // Default current level is null (0)
+        const gapPercentage = calculateGapPercentageInternal(requiredLevel, null)
+        const status = determineStatus(gapPercentage, false) // New assignment likely has no training yet
+
+        updates.push(
+          prisma.skillMatrix.create({
+            data: {
+              userId,
+              skillId: competency.skillId,
+              desiredLevel: requiredLevel,
+              currentLevel: null,
+              gapPercentage,
+              status
+            }
+          })
+        )
+      }
+    }
+
+    if (updates.length > 0) {
+      await prisma.$transaction(updates)
+      revalidatePath(`/employee/skill-gaps`)
+      revalidatePath(`/admin/tna`)
+    }
+
+  } catch (error) {
+    console.error(`Failed to sync skills for user ${userId} and role ${roleId}:`, error)
+    // Don't throw, just log - we don't want to break the user update flow
   }
 }
 

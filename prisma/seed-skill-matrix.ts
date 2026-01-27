@@ -186,6 +186,7 @@ function levelToNumber(level: CompetencyLevel): number {
         case CompetencyLevel.INTERMEDIATE: return 2;
         case CompetencyLevel.ADVANCED: return 3;
         case CompetencyLevel.EXPERT: return 4;
+        default: return 1; // Default to BEGINNER for any other cases (e.g., BASIC)
     }
 }
 

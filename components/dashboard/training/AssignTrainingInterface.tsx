@@ -123,7 +123,7 @@ export function AssignTrainingInterface({ reportees, trainings, roles }: AssignT
         const selectedLevelConfig = TARGET_LEVELS.find(l => l.value === targetLevel)
         const payload = {
             trainingId: selectedTrainingId,
-            targetLevel: selectedLevelConfig?.dbValue || 'BEGINNER',
+            targetLevel: (selectedLevelConfig?.dbValue || 'BEGINNER') as any,
             assignments: selectedUsers.map(userId => ({
                 userId,
                 startDate,

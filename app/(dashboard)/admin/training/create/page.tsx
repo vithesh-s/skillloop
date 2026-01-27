@@ -27,8 +27,8 @@ export default async function CreateTrainingPage() {
         orderBy: { name: 'asc' }
     })
     
-    // Sort by roles: ADMIN first, then MANAGER, then TRAINER, then LEARNER
-    const roleOrder = { ADMIN: 1, MANAGER: 2, TRAINER: 3, LEARNER: 4 }
+    // Sort by roles: ADMIN first, then MANAGER, then MENTOR, then TRAINER, then LEARNER
+    const roleOrder = { ADMIN: 1, MANAGER: 2, MENTOR: 3, TRAINER: 4, LEARNER: 5 }
     trainers.sort((a, b) => {
         const aTopRole = Math.min(...(a.systemRoles?.map(r => roleOrder[r] || 99) || [99]))
         const bTopRole = Math.min(...(b.systemRoles?.map(r => roleOrder[r] || 99) || [99]))

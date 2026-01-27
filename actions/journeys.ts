@@ -8,7 +8,7 @@
 import { db as prisma } from "@/lib/db";
 import {
   initializeJourney,
-  autoAdvancePhase,
+  autoAdvancePhase as internalAutoAdvancePhase,
   calculatePhaseProgress,
   pauseJourney,
   resumeJourney,
@@ -212,7 +212,7 @@ export async function skipJourneyPhase(
       return { success: false, error: "Phase already completed" };
     }
 
-    await autoAdvancePhase(journeyId, "phase_skipped", { reason } as Prisma.InputJsonValue);
+    await internalAutoAdvancePhase(journeyId, "phase_skipped", { reason } as Prisma.InputJsonValue);
 
     revalidatePath(`/admin/users/${journey.userId}/journey`);
 
@@ -226,6 +226,24 @@ export async function skipJourneyPhase(
       success: false,
       error: "Failed to skip phase",
     };
+  }
+}
+
+/**
+ * Auto-advance phase logic wrapped as a server action
+ * This allows it to be called from other server actions (like training completion)
+ */
+export async function autoAdvancePhase(
+  journeyId: string,
+  triggerType: string,
+  data?: Prisma.InputJsonValue
+) {
+  try {
+    const result = await internalAutoAdvancePhase(journeyId, triggerType, data);
+    return result;
+  } catch (error) {
+    console.error("Error in autoAdvancePhase action:", error);
+    return { success: false, error: "Failed to auto-advance phase" };
   }
 }
 

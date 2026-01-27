@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { PhaseStatus } from "@prisma/client";
+import { PhaseStatus } from "@/lib/journey-constants";
 import {
   Accordion,
   AccordionContent,

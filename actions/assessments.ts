@@ -1,6 +1,7 @@
 "use server"
 
 import { auth } from "@/lib/auth"
+import { sendEmail } from "@/lib/email"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import {
@@ -1338,7 +1339,9 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
             ? "ADVANCED"
             : percentage >= 41
               ? "INTERMEDIATE"
-              : "BEGINNER"
+              : percentage >= 21
+                ? "BASIC"
+                : "BEGINNER"
 
       const skillMatrix = await prisma.skillMatrix.findUnique({
         where: {
@@ -1352,6 +1355,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       // Calculate new gap percentage
       const levelScores = {
         BEGINNER: 25,
+        BASIC: 35,
         INTERMEDIATE: 50,
         ADVANCED: 75,
         EXPERT: 95,
@@ -1360,11 +1364,6 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
       const currentScore = levelScores[currentLevel]
       const desiredScore = levelScores[skillMatrix?.desiredLevel || 'EXPERT']
       const gapPercentage = Math.max(0, Math.round(((desiredScore - currentScore) / desiredScore) * 100))
-
-      // Increase confidence if improvement is significant (>20%)
-      const newConfidence = improvement > 20 
-        ? Math.min(100, (skillMatrix?.confidence || 50) + 10)
-        : skillMatrix?.confidence || 50
 
       // Update status based on gap
       const newStatus = gapPercentage < 15 ? 'completed' : 'in_progress'
@@ -1381,7 +1380,6 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
           lastAssessedDate: new Date(),
           status: newStatus,
           gapPercentage,
-          confidence: newConfidence,
         },
         create: {
           userId: attempt.userId,
@@ -1391,7 +1389,6 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
           lastAssessedDate: new Date(),
           status: newStatus,
           gapPercentage,
-          confidence: newConfidence,
         },
       })
 
@@ -1450,7 +1447,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
         })
 
         if (userWithJourney?.journey && userWithJourney.journey.phases.length > 0) {
-          const { autoAdvancePhase } = await import('./journeys')
+          const { autoAdvancePhase } = await import('@/lib/journey-engine')
           await autoAdvancePhase(
             userWithJourney.journey.id,
             'assessment_completed',

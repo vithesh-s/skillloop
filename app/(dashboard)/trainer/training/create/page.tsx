@@ -21,8 +21,8 @@ export default async function CreateTrainingPage() {
     // Fetch trainers for offline training selection
     const trainers = await prisma.user.findMany({
         where: { systemRoles: { has: 'TRAINER' } },
-        select: { id: true, name: true, email: true }
+        select: { id: true, name: true, email: true, department: true, systemRoles: true }
     })
     
-    return <CreateTrainingForm skills={skills} trainers={trainers} />
+    return <CreateTrainingForm skills={skills} trainers={trainers} departments={[]} userRole="trainer" />
 }

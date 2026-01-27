@@ -27,18 +27,20 @@ interface EditDesiredLevelDialogProps {
 
 const COMPETENCY_LEVELS = [
   { value: 'BEGINNER', label: 'Beginner', description: 'Just starting out', level: 1 },
-  { value: 'INTERMEDIATE', label: 'Intermediate', description: 'Comfortable', level: 2 },
-  { value: 'ADVANCED', label: 'Advanced', description: 'Very skilled', level: 3 },
-  { value: 'EXPERT', label: 'Expert', description: 'Master level', level: 4 },
+  { value: 'BASIC', label: 'Basic', description: 'Fundamental knowledge', level: 2 },
+  { value: 'INTERMEDIATE', label: 'Intermediate', description: 'Comfortable', level: 3 },
+  { value: 'ADVANCED', label: 'Advanced', description: 'Very skilled', level: 4 },
+  { value: 'EXPERT', label: 'Expert', description: 'Master level', level: 5 },
 ] as const
 
 const levelToNumeric = (level: CompetencyLevel | null): number => {
   if (!level) return 0
   const mapping: Record<string, number> = {
     'BEGINNER': 1,
-    'INTERMEDIATE': 2,
-    'ADVANCED': 3,
-    'EXPERT': 4,
+    'BASIC': 2,
+    'INTERMEDIATE': 3,
+    'ADVANCED': 4,
+    'EXPERT': 5,
   }
   return mapping[level] || 0
 }

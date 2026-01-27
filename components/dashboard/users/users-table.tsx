@@ -39,6 +39,7 @@ import {
   RiArrowLeftLine,
   RiArrowRightLine,
   RiEyeLine,
+  RiBookOpenLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 
@@ -57,7 +58,7 @@ interface User {
     status: string;
     employeeType: string;
     userId: string;
-    startedAt: Date;
+    startedAt: Date | null;
     completedAt: Date | null;
     cycleNumber: number;
     createdAt: Date;
@@ -256,6 +257,12 @@ export function UsersTable({
                         >
                           <RiEditLine className="mr-2 h-4 w-4" />
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/users/${user.id}/skills`}>
+                            <RiBookOpenLine className="mr-2 h-4 w-4" />
+                            Manage Skills
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"

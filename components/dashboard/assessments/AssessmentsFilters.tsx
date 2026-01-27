@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-import { Skill } from "@prisma/client"
+import type { Skill } from "@prisma/client"
 
 interface AssessmentsFiltersProps {
   skills: Skill[]
