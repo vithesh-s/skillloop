@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useActionState } from "react"
-import { createAssessment, updateAssessment, addQuestion, publishAssessment, getAssessmentById } from "@/actions/assessments"
+import { type FormState, createAssessment, updateAssessment, addQuestion, publishAssessment, getAssessmentById } from "@/actions/assessments"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,7 +35,7 @@ interface CreateAssessmentFormProps {
   preselectedSkillId?: string
 }
 
-const initialState = {
+const initialState: FormState = {
   message: "",
   errors: {},
   success: false,
