@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useActionState } from "react"
-import { addQuestion } from "@/actions/assessments"
+import { type FormState, addQuestion } from "@/actions/assessments"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,7 +29,7 @@ interface QuestionFormProps {
   onSuccess?: () => void
 }
 
-const initialState = {
+const initialState: FormState = {
   message: "",
   errors: {},
   success: false,

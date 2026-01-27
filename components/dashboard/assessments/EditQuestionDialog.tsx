@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useActionState } from "react"
-import { updateQuestion } from "@/actions/assessments"
+import { type FormState, updateQuestion } from "@/actions/assessments"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,7 +43,7 @@ interface EditQuestionDialogProps {
   onSuccess?: () => void
 }
 
-const initialState = {
+const initialState: FormState = {
   message: "",
   errors: {},
   success: false,
@@ -66,8 +66,13 @@ export function EditQuestionDialog({ question, open, onOpenChange, onSuccess }: 
     }
   }, [question])
 
+  // Wrapper for the update action to preserve correct typing
+  const updateQuestionAction = async (state: FormState, payload: FormData) => {
+    return updateQuestion(question.id, state, payload);
+  };
+
   const [state, formAction, pending] = useActionState(
-    updateQuestion.bind(null, question.id),
+    updateQuestionAction,
     initialState
   )
 

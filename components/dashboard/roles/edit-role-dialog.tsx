@@ -62,9 +62,13 @@ export function EditRoleDialog({ roleId, open, onOpenChange }: EditRoleDialogPro
   const [roleData, setRoleData] = useState<RoleData | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const updateRoleWithId = updateRole.bind(null, roleId);
+  // Wrapper for the update action to preserve correct typing
+  const updateRoleAction = async (state: RoleFormState, payload: FormData) => {
+    return updateRole(roleId, state, payload);
+  };
+  
   const [state, formAction, isPending] = useActionState(
-    updateRoleWithId,
+    updateRoleAction,
     initialState
   );
   const router = useRouter();

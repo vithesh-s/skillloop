@@ -40,9 +40,13 @@ export function EditSkillDialog({
   onOpenChange,
 }: EditSkillDialogProps) {
   const [categoryId, setCategoryId] = useState(skill.category.id);
-  const updateSkillWithId = updateSkill.bind(null, skill.id);
+  // Wrapper for the update action to preserve correct typing
+  const updateSkillAction = async (state: SkillFormState, payload: FormData) => {
+    return updateSkill(skill.id, state, payload);
+  };
+  
   const [state, formAction, isPending] = useActionState(
-    updateSkillWithId,
+    updateSkillAction,
     initialState
   );
   const router = useRouter();
