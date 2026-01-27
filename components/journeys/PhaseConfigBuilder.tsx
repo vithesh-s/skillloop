@@ -95,7 +95,7 @@ export function PhaseConfigBuilder({
     setEditingPhaseIndex(null);
   };
 
-  const totalDuration = phases.reduce((sum, phase) => sum + phase.durationDays, 0);
+  const totalDuration = phases.reduce((sum, phase) => sum + (phase.durationDays || 0), 0);
 
   return (
     <div className="space-y-4">
@@ -122,7 +122,7 @@ export function PhaseConfigBuilder({
                     <Input
                       type="number"
                       min="1"
-                      value={phase.durationDays}
+                      value={Number.isNaN(phase.durationDays) ? "" : phase.durationDays}
                       onChange={(e) =>
                         handleUpdatePhase(index, {
                           durationDays: parseInt(e.target.value),
@@ -218,11 +218,11 @@ export function PhaseConfigBuilder({
                 <Input
                   type="number"
                   min="1"
-                  value={newPhase.durationDays}
+                  value={Number.isNaN(newPhase.durationDays) ? "" : newPhase.durationDays}
                   onChange={(e) =>
                     setNewPhase({
                       ...newPhase,
-                      durationDays: parseInt(e.target.value) || 3,
+                      durationDays: parseInt(e.target.value),
                     })
                   }
                   className="h-8"

@@ -29,7 +29,7 @@ async function updateUserToAdmin() {
         // Update roles to ADMIN, MANAGER, and LEARNER
         const updatedUser = await db.user.update({
             where: { email },
-            data: { systemRoles: ['ADMIN', 'MANAGER', 'LEARNER'] }
+            data: { systemRoles: ['ADMIN', 'MANAGER', 'LEARNER','MENTOR'] }
         })
 
         console.log(`\n✅ Successfully updated roles`)

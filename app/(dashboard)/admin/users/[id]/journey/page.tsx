@@ -22,12 +22,12 @@ async function JourneyContentServer({ userId }: { userId: string }) {
   const progress = journey.progress;
 
   // Get available mentors for assignment dialog
+  // Get available mentors (any user except the learner themselves)
   const availableMentors = await prisma.user.findMany({
     where: {
-      OR: [
-        { systemRoles: { has: "TRAINER" } },
-        { systemRoles: { has: "MENTOR" } },
-      ],
+      id: {
+        not: userId,
+      },
     },
     select: {
       id: true,
@@ -37,7 +37,13 @@ async function JourneyContentServer({ userId }: { userId: string }) {
       designation: true,
       department: true,
     },
+    orderBy: {
+      name: 'asc',
+    },
   });
+
+  console.log(`[JourneyPage] Found ${availableMentors.length} available mentors`);
+
 
   // Get IDs of assessments and trainings already linked to journey phases
   const linkedAssessmentIds = journey.phases
@@ -47,14 +53,11 @@ async function JourneyContentServer({ userId }: { userId: string }) {
     .filter((p: any) => p.trainingAssignmentId)
     .map((p: any) => p.trainingAssignmentId!);
 
-  // Get available assessments for the user (assigned but not linked to any journey phase)
+  // Get ALL available assessments (not linked to any journey phase)
+  // We want to show all published assessments even if not assigned to the user yet
   const availableAssessments = await prisma.assessment.findMany({
     where: {
-      assignments: {
-        some: {
-          userId: userId,
-        },
-      },
+      status: "PUBLISHED",
       id: {
         notIn: linkedAssessmentIds,
       },
@@ -63,6 +66,9 @@ async function JourneyContentServer({ userId }: { userId: string }) {
       id: true,
       title: true,
       status: true,
+    },
+    orderBy: {
+      title: 'asc',
     },
   }).then(assessments => 
     assessments.map(a => ({

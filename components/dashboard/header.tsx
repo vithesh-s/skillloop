@@ -96,7 +96,7 @@ export function DashboardHeader({ user }: HeaderProps) {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {user.systemRoles.includes('TRAINER') && (
+              {user.systemRoles.includes('TRAINER') || user.systemRoles.includes('MENTOR') && (
                 <DropdownMenuItem asChild>
                   <Link href="/trainer">
                     <RiDashboardLine className="mr-2 h-4 w-4" />

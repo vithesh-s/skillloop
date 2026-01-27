@@ -28,7 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { linkAssessment, linkTraining, updatePhaseDetails } from "@/actions/journeys";
+import { linkAssessment, linkTraining, updatePhaseDetails, removeMentorFromPhase } from "@/actions/journeys";
 import { 
   Link as LinkIcon, 
   FileText, 
@@ -36,6 +36,7 @@ import {
   Calendar,
   User,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,6 +153,20 @@ export function PhaseManagementDialog({
         onOpenChange(false);
       } else {
         toast.error(result.error || "Failed to update phase");
+      }
+    });
+  };
+
+  const handleRemoveMentor = () => {
+    if (!confirm("Are you sure you want to remove the assigned mentor?")) return;
+
+    startTransition(async () => {
+      const result = await removeMentorFromPhase(phase.id);
+      if (result.success) {
+        toast.success(result.message);
+        onOpenChange(false);
+      } else {
+        toast.error(result.error || "Failed to remove mentor");
       }
     });
   };
@@ -334,8 +349,23 @@ export function PhaseManagementDialog({
                     <User className="h-4 w-4" />
                     Assigned Mentor
                   </Label>
-                  <div className="p-3 border rounded-md">
-                    <p className="font-medium">{phase.mentor.name}</p>
+                  <div className="p-3 border rounded-md flex justify-between items-center group">
+                    <div className="flex items-center gap-3">
+                         {phase.mentor.avatar && (
+                             <img src={phase.mentor.avatar} alt={phase.mentor.name} className="h-8 w-8 rounded-full object-cover" />
+                        )} 
+                        <span className="font-medium">{phase.mentor.name}</span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={handleRemoveMentor}
+                      disabled={isPending}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      title="Remove Mentor"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               )}

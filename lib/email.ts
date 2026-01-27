@@ -17,7 +17,7 @@ interface SendVerificationRequestParams {
 export interface SendEmailParams {
   to: string
   subject: string
-  template: 'training-assigned' | 'calendar-updated' | 'assessment-due' | 'general' | 'feedback-reminder' | 'progress-reminder' | 'post-assessment-scheduled' | 'skill-progression'
+  template: 'training-assigned' | 'calendar-updated' | 'assessment-due' | 'general' | 'feedback-reminder' | 'progress-reminder' | 'post-assessment-scheduled' | 'skill-progression' | 'mentor-assigned'
   data: any
 }
 
@@ -86,7 +86,7 @@ function getTemplate(template: string, data: any) {
             <p>Hello ${data.userName},</p>
             <p>The schedule for <strong>${data.trainingName}</strong> has been updated.</p>
             
-             <table class="info-table">
+            <table class="info-table">
                 <tr><td class="label">New Date:</td><td>${data.newDate}</td></tr>
                 <tr><td class="label">Venue/Link:</td><td>${data.newLocation}</td></tr>
             </table>
@@ -190,6 +190,25 @@ function getTemplate(template: string, data: any) {
 
             <div style="text-align: center;">
                 <a href="${process.env.NEXTAUTH_URL}/employee/skill-gaps" class="button">View Skill Matrix</a>
+            </div>
+        `;
+  } else if (template === 'mentor-assigned') {
+    body = `
+            <h2>Mentor Assignment Notification</h2>
+            <p>Hello ${data.mentorName},</p>
+            <p>You have been assigned as a mentor for a new journey phase.</p>
+            
+            <table class="info-table">
+                <tr><td class="label">Employee:</td><td>${data.employeeName}</td></tr>
+                <tr><td class="label">Phase:</td><td>${data.phaseTitle}</td></tr>
+                <tr><td class="label">Start Date:</td><td>${data.startDate}</td></tr>
+                <tr><td class="label">Duration:</td><td>${data.duration} days</td></tr>
+            </table>
+
+            <p>Please connect with the employee to guide them through this phase.</p>
+
+            <div style="text-align: center;">
+                <a href="${process.env.NEXTAUTH_URL}/employee/mentorship" class="button">View Mistorship Dashboard</a>
             </div>
         `;
   } else {

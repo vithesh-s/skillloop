@@ -21,16 +21,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { assignMentorToPhase } from "@/actions/journeys";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Phase {
   id: string;
@@ -71,6 +84,7 @@ export function MentorAssignmentDialog({
   const [notificationMessage, setNotificationMessage] = useState<string>("");
   const [sendEmailToMentor, setSendEmailToMentor] = useState(true);
   const [sendEmailToEmployee, setSendEmailToEmployee] = useState(true);
+  const [mentorOpen, setMentorOpen] = useState(false);
 
   const selectedPhase = phases.find((p) => p.id === selectedPhaseId);
   const selectedMentor = availableMentors.find((m) => m.id === selectedMentorId);
@@ -109,7 +123,7 @@ export function MentorAssignmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Assign Mentor to Phase</DialogTitle>
           <DialogDescription>
@@ -117,88 +131,93 @@ export function MentorAssignmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Phase Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="phase-select">Select Phase</Label>
-            <Select value={selectedPhaseId} onValueChange={setSelectedPhaseId}>
-              <SelectTrigger id="phase-select">
-                <SelectValue placeholder="Choose a phase..." />
-              </SelectTrigger>
-              <SelectContent>
-                {phases.map((phase) => (
-                  <SelectItem key={phase.id} value={phase.id}>
-                    Phase {phase.phaseNumber}: {phase.title}
-                    {phase.status === "IN_PROGRESS" && " (In Progress)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Phase Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="phase-select">Select Phase</Label>
+              <Select value={selectedPhaseId} onValueChange={setSelectedPhaseId}>
+                <SelectTrigger id="phase-select">
+                  <SelectValue placeholder="Phase..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {phases.map((phase) => (
+                    <SelectItem key={phase.id} value={phase.id}>
+                      Phase {phase.phaseNumber}: {phase.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          {/* Mentor Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="mentor-select">Select Mentor</Label>
-            <Select value={selectedMentorId} onValueChange={setSelectedMentorId}>
-              <SelectTrigger id="mentor-select">
-                <SelectValue placeholder="Choose a mentor..." />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMentors.map((mentor) => (
-                  <SelectItem key={mentor.id} value={mentor.id}>
-                    {mentor.name} - {mentor.designation}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Available Mentors List */}
-          <div className="space-y-2">
-            <Label>Available Mentors</Label>
-            <ScrollArea className="h-48 rounded-lg border p-4">
-              <div className="space-y-3">
-                {availableMentors.map((mentor) => (
-                  <div
-                    key={mentor.id}
-                    className={`flex items-center gap-3 rounded-lg p-3 transition-colors cursor-pointer hover:bg-accent ${
-                      selectedMentorId === mentor.id ? "bg-accent" : ""
-                    }`}
-                    onClick={() => setSelectedMentorId(mentor.id)}
+            {/* Mentor Selection - Combobox */}
+            <div className="space-y-2">
+              <Label>Select Mentor</Label>
+              <Popover open={mentorOpen} onOpenChange={setMentorOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={mentorOpen}
+                    className="w-full justify-between px-3"
                   >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={mentor.avatar || undefined} />
-                      <AvatarFallback>
-                        {mentor.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold">{mentor.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {mentor.designation}
-                        {mentor.department && ` • ${mentor.department}`}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={selectedMentorId === mentor.id ? "default" : "outline"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMentorId(mentor.id);
-                      }}
-                    >
-                      {selectedMentorId === mentor.id ? "Selected" : "Select"}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+                    {selectedMentor ? (
+                      <div className="flex items-center gap-2 truncate">
+                        <Avatar className="h-5 w-5 shrink-0">
+                            <AvatarImage src={selectedMentor.avatar || undefined} />
+                            <AvatarFallback className="text-[10px]">
+                              {selectedMentor.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{selectedMentor.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Search name...</span>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search..." />
+                    <CommandList>
+                      <CommandEmpty>No mentor found.</CommandEmpty>
+                      <CommandGroup>
+                        {availableMentors.map((mentor) => (
+                          <CommandItem
+                            key={mentor.id}
+                            value={mentor.name}
+                            onSelect={() => {
+                              setSelectedMentorId(mentor.id);
+                              setMentorOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedMentorId === mentor.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <Avatar className="h-6 w-6 mr-2">
+                              <AvatarImage src={mentor.avatar || undefined} />
+                              <AvatarFallback className="text-[10px]">
+                                {mentor.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span>{mentor.name}</span>
+                              {mentor.designation && (
+                                <span className="text-xs text-muted-foreground">{mentor.designation}</span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           <Separator />
@@ -206,20 +225,20 @@ export function MentorAssignmentDialog({
           {/* Notification Message */}
           <div className="space-y-2">
             <Label htmlFor="notification-message">
-              Notification Message (optional)
+              Notification Message
             </Label>
             <Textarea
               id="notification-message"
               placeholder={defaultMessage}
               value={notificationMessage}
               onChange={(e) => setNotificationMessage(e.target.value)}
-              rows={5}
-              className="resize-none"
+              rows={3}
+              className="resize-none text-sm"
             />
           </div>
 
-          {/* Notification Options */}
-          <div className="space-y-3">
+          {/* Notification Options - Horizontal */}
+          <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="send-mentor-email"
@@ -230,9 +249,9 @@ export function MentorAssignmentDialog({
               />
               <Label
                 htmlFor="send-mentor-email"
-                className="text-sm font-normal cursor-pointer"
+                className="text-sm font-normal cursor-pointer text-muted-foreground"
               >
-                Send email notification to mentor
+                Notify mentor
               </Label>
             </div>
             <div className="flex items-center space-x-2">
@@ -245,9 +264,9 @@ export function MentorAssignmentDialog({
               />
               <Label
                 htmlFor="send-employee-email"
-                className="text-sm font-normal cursor-pointer"
+                className="text-sm font-normal cursor-pointer text-muted-foreground"
               >
-                Send notification to employee
+                Notify employee
               </Label>
             </div>
           </div>
