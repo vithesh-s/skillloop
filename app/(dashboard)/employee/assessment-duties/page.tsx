@@ -8,7 +8,7 @@ export default async function AssessmentDutiesPage() {
     if (!session?.user) redirect('/login')
 
     // Fetch trainings where the user is the assessment owner, skills, draft assessments, and all user's assessments
-    const [ownedTrainings, skills, draftAssessments, allAssessments] = await Promise.all([
+    const [allOwnedTrainings, skills, allDraftAssessments, allAssessments] = await Promise.all([
         prisma.training.findMany({
             where: {
                 assessmentOwnerId: session.user.id
@@ -94,6 +94,12 @@ export default async function AssessmentDutiesPage() {
             }
         })
     ])
+
+    // Filter trainings to only show those with active assignments
+    const ownedTrainings = allOwnedTrainings.filter(training => training.assignments.length > 0)
+
+    // Filter draft assessments to only show those with questions created
+    const draftAssessments = allDraftAssessments.filter(assessment => assessment._count.questions > 0)
 
     // Map assessments to trainings by skillId
     const trainingAssessments = new Map()
