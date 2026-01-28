@@ -246,6 +246,28 @@ export async function getAssignmentProgress(assignmentId: string) {
             return { success: false, error: 'Unauthorized' }
         }
 
+        // Fetch scheduled assessment if any
+        const scheduledAssessment = await prisma.assessmentAssignment.findFirst({
+            where: {
+                userId: assignment.userId,
+                assessment: {
+                    skillId: assignment.training.skillId,
+                    isPreAssessment: false
+                }
+            },
+            include: {
+                assessment: {
+                    select: {
+                        id: true,
+                        title: true,
+                        duration: true,
+                        passingScore: true
+                    }
+                }
+            },
+            orderBy: { dueDate: 'desc' }
+        })
+
         // Calculate statistics
         const stats = {
             totalWeeks: assignment.progressUpdates.length,
@@ -261,7 +283,7 @@ export async function getAssignmentProgress(assignmentId: string) {
             pendingProofs: assignment.proofs.filter(p => p.status === 'PENDING').length
         }
 
-        return { success: true, data: { assignment, stats } }
+        return { success: true, data: { assignment, stats, scheduledAssessment } }
     } catch (error) {
         console.error('Get assignment progress error:', error)
         return { success: false, error: 'Failed to fetch assignment progress' }

@@ -53,7 +53,7 @@ export default auth((req) => {
         '/admin': ['ADMIN'],
         '/trainer': ['TRAINER', 'ADMIN'],
         '/manager': ['MANAGER', 'ADMIN'],
-        '/employee': ['LEARNER', 'ADMIN', 'MANAGER', 'TRAINER', 'MENTOR'],
+        '/employee': ['LEARNER', 'ADMIN', 'MANAGER', 'TRAINER', 'MENTOR', 'MENTOR'],
     }
 
     // Check if route requires specific role

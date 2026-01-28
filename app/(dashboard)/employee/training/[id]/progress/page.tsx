@@ -11,6 +11,7 @@ import { ProgressUpdateForm } from '@/components/training/ProgressUpdateForm'
 import { ProgressTimeline } from '@/components/training/ProgressTimeline'
 import { ProgressStats } from '@/components/training/ProgressStats'
 import { ProofUpload } from '@/components/training/ProofUpload'
+import { TrainingCompletionDialog } from '@/components/dashboard/training/TrainingCompletionDialog'
 
 interface PageProps {
     params: Promise<{ id: string }>
@@ -25,7 +26,7 @@ export default async function TrainingProgressPage({ params }: PageProps) {
 
     if (!result.success || !result.data) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-100 gap-4">
+            <div className="flex flex-col items-center justify-center  gap-4">
                 <p className="text-lg text-muted-foreground">{result.error || 'Failed to load training progress'}</p>
                 <Link href="/employee/my-trainings">
                     <Button variant="outline">
@@ -37,10 +38,13 @@ export default async function TrainingProgressPage({ params }: PageProps) {
         )
     }
 
-    const { assignment, stats } = result.data
+    const { assignment, stats, scheduledAssessment } = result.data
 
     // Check if user can upload proof (>80% completion)
     const canUploadProof = stats.averageCompletion >= 80
+    
+    // Check if user has approved proof to submit completion
+    const hasApprovedProof = assignment.proofs.some((proof: any) => proof.status === 'APPROVED')
 
     return (
         <div className="flex flex-col gap-6 p-6">
@@ -128,6 +132,55 @@ export default async function TrainingProgressPage({ params }: PageProps) {
             {/* Progress Stats */}
             <ProgressStats stats={stats} />
 
+            {/* Assessment Information */}
+            {scheduledAssessment && (
+                <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+                    <CardHeader>
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-blue-600" />
+                                    Post-Training Assessment Scheduled
+                                </CardTitle>
+                                <CardDescription className="text-blue-700 dark:text-blue-300">
+                                    {scheduledAssessment.assessment.title}
+                                </CardDescription>
+                            </div>
+                            <Badge variant="outline" className="border-blue-600 text-blue-600">
+                                {scheduledAssessment.status}
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Due Date</p>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    {format(new Date(scheduledAssessment.dueDate), 'PPP')}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Duration</p>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    {scheduledAssessment.assessment.duration} minutes
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Passing Score</p>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    {scheduledAssessment.assessment.passingScore}%
+                                </p>
+                            </div>
+                        </div>
+                        <div className="pt-3 border-t border-blue-200">
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                📝 Complete your training and submit proof of completion. The assessment will be available on your target completion date.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Progress Update Form (only if not completed) */}
             {assignment.status !== 'COMPLETED' && (
                 <Card>
@@ -159,7 +212,7 @@ export default async function TrainingProgressPage({ params }: PageProps) {
                     <CardHeader>
                         <CardTitle>Submit Proof of Completion</CardTitle>
                         <CardDescription>
-                            Upload certificates, completion documents, or screenshots as proof
+                            Upload certificates, completion documents, or screenshots as proof. Once approved by your trainer, you can submit the training for completion.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -167,6 +220,21 @@ export default async function TrainingProgressPage({ params }: PageProps) {
                             assignmentId={id}
                             existingProofs={assignment.proofs}
                         />
+                        
+                        {/* Submit Completion Button - only show if has approved proof */}
+                        {hasApprovedProof && (
+                            <div className="mt-6 pt-6 border-t">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex-1">
+                                        <h4 className="text-sm font-semibold mb-1">Ready to Complete Training?</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                            Your proof has been approved. Click below to submit final completion details and mark this training as complete.
+                                        </p>
+                                    </div>
+                                    <TrainingCompletionDialog assignment={assignment} />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             )}

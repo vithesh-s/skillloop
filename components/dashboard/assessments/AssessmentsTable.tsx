@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { toast } from "sonner" 
 import { deleteAssessment, publishAssessment, archiveAssessment } from "@/actions/assessments"
 import {
@@ -58,7 +58,11 @@ export function AssessmentsTable({
   totalPages,
 }: AssessmentsTableProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Determine base path (admin or trainer)
+  const basePath = pathname?.startsWith('/trainer') ? '/trainer' : '/admin'
 
   // Guard against undefined assessments
   if (!Array.isArray(assessments)) {
@@ -137,7 +141,7 @@ export function AssessmentsTable({
                 <TableRow 
                   key={assessment.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => router.push(`/admin/assessments/${assessment.id}`)}
+                  onClick={() => router.push(`${basePath}/assessments/${assessment.id}`)}
                 >
                   <TableCell className="font-medium">{assessment.title}</TableCell>
                   <TableCell>{assessment.skill.name}</TableCell>
@@ -163,13 +167,13 @@ export function AssessmentsTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/assessments/${assessment.id}`}>
+                          <Link href={`${basePath}/assessments/${assessment.id}`}>
                             <RiEyeLine className="mr-2 h-4 w-4" />
                             View
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/assessments/${assessment.id}/edit`}>
+                          <Link href={`${basePath}/assessments/${assessment.id}/edit`}>
                             <RiEditLine className="mr-2 h-4 w-4" />
                             Edit
                           </Link>

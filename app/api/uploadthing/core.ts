@@ -14,17 +14,19 @@ export const ourFileRouter = {
     'application/msword': { maxFileSize: '8MB', maxFileCount: 3 },
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { maxFileSize: '8MB', maxFileCount: 3 }
   })
-    .middleware(async ({ req, files }) => {
+    .input(async (input: any) => {
+      // This validates and parses the input from the client
+      return { assignmentId: input?.assignmentId as string }
+    })
+    .middleware(async ({ req, input }) => {
       // Check authentication
       const session = await auth()
       if (!session?.user) {
         throw new UploadThingError('Unauthorized - You must be logged in to upload')
       }
 
-      // Get assignmentId from request metadata
-      // The client passes this through the UploadThing component
-      const metadata = (req as any).body?.metadata
-      const assignmentId = metadata?.assignmentId
+      // Get assignmentId from input
+      const assignmentId = input?.assignmentId
 
       if (!assignmentId) {
         throw new UploadThingError('Assignment ID is required')

@@ -8,7 +8,7 @@
 import { db as prisma } from "@/lib/db";
 import {
   initializeJourney,
-  autoAdvancePhase as internalAutoAdvancePhase,
+  autoAdvancePhase,
   calculatePhaseProgress,
   pauseJourney,
   resumeJourney,
@@ -28,8 +28,6 @@ import {
   Prisma,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
-import { sendEmail } from "@/lib/email";
 
 /**
  * Create a new journey for an employee
@@ -212,7 +210,7 @@ export async function skipJourneyPhase(
       return { success: false, error: "Phase already completed" };
     }
 
-    await internalAutoAdvancePhase(journeyId, "phase_skipped", { reason } as Prisma.InputJsonValue);
+    await autoAdvancePhase(journeyId, "phase_skipped", { reason } as Prisma.InputJsonValue);
 
     revalidatePath(`/admin/users/${journey.userId}/journey`);
 
@@ -230,24 +228,6 @@ export async function skipJourneyPhase(
 }
 
 /**
- * Auto-advance phase logic wrapped as a server action
- * This allows it to be called from other server actions (like training completion)
- */
-export async function autoAdvancePhase(
-  journeyId: string,
-  triggerType: string,
-  data?: Prisma.InputJsonValue
-) {
-  try {
-    const result = await internalAutoAdvancePhase(journeyId, triggerType, data);
-    return result;
-  } catch (error) {
-    console.error("Error in autoAdvancePhase action:", error);
-    return { success: false, error: "Failed to auto-advance phase" };
-  }
-}
-
-/**
  * Assign a mentor to a specific phase
  */
 export async function assignMentorToPhase(
@@ -256,23 +236,6 @@ export async function assignMentorToPhase(
   sendNotification: boolean = true
 ) {
   try {
-    // Check if the assigned mentor has the MENTOR role, if not, add it
-    const mentorUser = await prisma.user.findUnique({
-      where: { id: mentorId },
-      select: { id: true, systemRoles: true }
-    });
-
-    if (mentorUser && !mentorUser.systemRoles.includes("MENTOR")) {
-      await prisma.user.update({
-        where: { id: mentorId },
-        data: {
-          systemRoles: {
-            push: "MENTOR"
-          }
-        }
-      });
-    }
-
     const phase = await prisma.journeyPhase.update({
       where: { id: phaseId },
       data: { mentorId },
@@ -294,20 +257,9 @@ export async function assignMentorToPhase(
       },
     });
 
-    // Send notification to mentor
-    if (sendNotification && phase.mentor && phase.mentor.email) {
-      await sendEmail({
-        to: phase.mentor.email,
-        subject: "New Mentor Assignment - Skill Loop",
-        template: "mentor-assigned",
-        data: {
-          mentorName: phase.mentor.name,
-          employeeName: phase.journey.user.name,
-          phaseTitle: phase.title,
-          startDate: phase.startedAt ? new Date(phase.startedAt).toLocaleDateString() : 'Not started yet',
-          duration: phase.durationDays
-        }
-      });
+    // TODO: Send notification to mentor and employee
+    if (sendNotification && phase.mentor) {
+      // await sendMentorAssignmentNotification(phase);
     }
 
     revalidatePath(`/admin/users/${phase.journey.userId}/journey`);
@@ -326,7 +278,7 @@ export async function assignMentorToPhase(
 }
 
 /**
- * Remove a mentor from a specific phase
+ * Remove a mentor from a journey phase
  */
 export async function removeMentorFromPhase(phaseId: string) {
   try {
@@ -334,7 +286,8 @@ export async function removeMentorFromPhase(phaseId: string) {
       where: { id: phaseId },
       data: { mentorId: null },
       include: {
-        journey: true,
+        journey: { include: { user: true } },
+        mentor: true,
       },
     });
 
@@ -361,6 +314,57 @@ export async function removeMentorFromPhase(phaseId: string) {
     return {
       success: false,
       error: "Failed to remove mentor",
+    };
+  }
+}
+
+/**
+ * Get all phases where the mentor is assigned
+ */
+export async function getMentorPhases(mentorId: string) {
+  try {
+    const phases = await prisma.journeyPhase.findMany({
+      where: {
+        mentorId,
+      },
+      orderBy: { phaseNumber: "asc" },
+      include: {
+        journey: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                designation: true,
+                department: true,
+              },
+            },
+          },
+        },
+        mentor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            designation: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      phases,
+    };
+  } catch (error) {
+    console.error("Error getting mentor phases:", error);
+    return {
+      success: false,
+      error: "Failed to retrieve mentor phases",
+      phases: [],
     };
   }
 }
@@ -676,93 +680,23 @@ export async function getDefaultPhaseConfigs(employeeType: EmployeeType) {
 
 /**
  * Link assessment to phase (for auto-advancement)
- * Auto-assigns the assessment to the user if not already assigned
  */
 export async function linkAssessment(phaseId: string, assessmentId: string) {
   try {
-    const session = await auth();
-
-    // Get the journey and user details
-    const phase = await prisma.journeyPhase.findUnique({
-      where: { id: phaseId },
-      include: {
-        journey: {
-          select: {
-            userId: true
-          }
-        }
-      },
-    });
-
-    if (!phase) {
-      return {
-        success: false,
-        error: "Phase not found",
-      };
-    }
-
-    const userId = phase.journey.userId;
-
-    // Check if assessment is already assigned to this user
-    const existingAssignment = await prisma.assessmentAssignment.findUnique({
-      where: {
-        assessmentId_userId: {
-          assessmentId,
-          userId,
-        },
-      },
-    });
-
-    // If not assigned, create the assignment
-    if (!existingAssignment) {
-      const sessionUserId = session?.user?.id;
-
-      if (!sessionUserId) {
-        return {
-          success: false,
-          error: "You must be logged in to assign assessments",
-        };
-      }
-
-      // Verify the assigner exists in the database
-      const assigner = await prisma.user.findUnique({
-        where: { id: sessionUserId },
-        select: { id: true }
-      });
-
-      if (!assigner) {
-        return {
-          success: false,
-          error: "Invalid session user. Please log in again.",
-        };
-      }
-
-      await prisma.assessmentAssignment.create({
-        data: {
-          assessmentId,
-          userId,
-          assignedById: assigner.id,
-          status: "PENDING",
-        },
-      });
-
-      // We might want to notify the user here about the new assignment
-    }
-
     await linkAssessmentToPhase(phaseId, assessmentId);
 
-    const updatedPhase = await prisma.journeyPhase.findUnique({
+    const phase = await prisma.journeyPhase.findUnique({
       where: { id: phaseId },
       include: { journey: true },
     });
 
-    if (updatedPhase) {
-      revalidatePath(`/admin/users/${updatedPhase.journey.userId}/journey`);
+    if (phase) {
+      revalidatePath(`/admin/users/${phase.journey.userId}/journey`);
     }
 
     return {
       success: true,
-      message: "Assessment linked (and assigned) successfully",
+      message: "Assessment linked successfully",
     };
   } catch (error) {
     console.error("Error linking assessment:", error);
@@ -939,50 +873,6 @@ export async function updatePhaseDetails(
     return {
       success: false,
       error: "Failed to update phase",
-    };
-  }
-}
-
-/**
- * Get all phases assigned to a mentor
- */
-export async function getMentorPhases(mentorId: string) {
-  try {
-    const phases = await prisma.journeyPhase.findMany({
-      where: {
-        mentorId: mentorId,
-      },
-      include: {
-        journey: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                avatar: true,
-                designation: true,
-                department: true,
-              },
-            },
-          },
-        },
-        mentor: true,
-      },
-      orderBy: {
-        startedAt: 'desc', // Most recent assignments first
-      },
-    });
-
-    return {
-      success: true,
-      phases,
-    };
-  } catch (error) {
-    console.error("Error retrieving mentor phases:", error);
-    return {
-      success: false,
-      error: "Failed to retrieve mentor phases",
     };
   }
 }

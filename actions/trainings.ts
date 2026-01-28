@@ -65,7 +65,7 @@ export async function createTraining(data: TrainingInput & { online?: OnlineTrai
     if (!session?.user?.id) throw new Error('Unauthorized')
 
     // Check role (ADMIN, TRAINER, or MANAGER)
-    const hasPermission = session.user.systemRoles?.some((role: string) => ['ADMIN', 'TRAINER', 'MANAGER'].includes(role))
+    const hasPermission = session.user.systemRoles?.some((role: string) => ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role))
     if (!hasPermission) throw new Error('Insufficient permissions')
 
     const validation = trainingSchema.safeParse(data)
@@ -237,7 +237,7 @@ export async function assignTraining(data: TrainingAssignmentInput) {
 
     // Manager/Admin/Trainer check
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'MANAGER', 'TRAINER'].includes(role)
+        ['ADMIN', 'MANAGER', 'TRAINER', 'MENTOR'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 
@@ -254,40 +254,80 @@ export async function assignTraining(data: TrainingAssignmentInput) {
     const targetLevel = validatedData.targetLevel || 'BEGINNER' // Default to BEGINNER if not specified
 
     try {
+        // ---------------------------------------------------------
+        // STEP 1: Fetch training info and create calendar entries OUTSIDE transaction
+        // ---------------------------------------------------------
+        const training = await prisma.training.findUnique({
+            where: { id: validatedData.trainingId },
+            include: { offlineTraining: true }
+        })
+
+        if (!training) {
+            return { success: false, error: 'Training not found' }
+        }
+
+        // Create calendar entries once (outside transaction to avoid timeout)
+        const days = eachDayOfInterval({
+            start: startDate,
+            end: targetCompletionDate
+        })
+
+        const existingCalendarDates = await prisma.trainingCalendar.findMany({
+            where: {
+                trainingId: validatedData.trainingId,
+                trainingDate: {
+                    in: days.filter(d => !isWeekend(d))
+                }
+            },
+            select: { trainingDate: true }
+        })
+
+        const existingDatesSet = new Set(
+            existingCalendarDates.map(cal => cal.trainingDate.toISOString())
+        )
+
+        // Create calendar entries only for dates that don't exist yet
+        for (const day of days) {
+            if (isWeekend(day)) continue;
+
+            const dayISO = day.toISOString()
+            if (existingDatesSet.has(dayISO)) continue;
+
+            try {
+                await prisma.trainingCalendar.create({
+                    data: {
+                        trainingId: validatedData.trainingId,
+                        trainingDate: day,
+                        venue: training?.venue || (training?.mode === 'OFFLINE' ? training?.offlineTraining?.venue : null),
+                        meetingLink: training?.meetingLink,
+                        maxParticipants: training?.maxParticipants,
+                        publishedAt: new Date(),
+                    }
+                })
+            } catch (calError) {
+                console.warn('Failed to create calendar entry:', calError)
+            }
+        }
+
+        // Fetch assessment info outside transaction
+        let assessment = null;
+        if (training?.skillId) {
+            assessment = await prisma.assessment.findFirst({
+                where: {
+                    skillId: training.skillId,
+                    isPreAssessment: false,
+                    status: 'PUBLISHED'
+                }
+            });
+        }
+
+        // ---------------------------------------------------------
+        // STEP 2: Main transaction (only critical writes, increased timeout)
+        // ---------------------------------------------------------
         const result = await prisma.$transaction(async (tx) => {
             const assignments = []
 
-            // Check offline capacity if applicable
-            // Check offline capacity if applicable
-            const training = await tx.training.findUnique({ 
-                where: { id: validatedData.trainingId },
-                include: { offlineTraining: true } 
-            })
-            
-            if (training?.mode === 'OFFLINE' && training.maxParticipants) {
-                // Determine existing count for same schedule (simplified: exact match on trainingId)
-                // Real implementation might need to check specific session dates from OfflineTraining schedule
-                // validation logic here
-            }
-
-            // Fetch generic assessment for this skill (Post-assessment)
-            let assessment = null;
-            if (training?.skillId) {
-                assessment = await tx.assessment.findFirst({
-                    where: {
-                        skillId: training.skillId,
-                        isPreAssessment: false,
-                        status: 'PUBLISHED'
-                    }
-                });
-            }
-
             for (const userId of validatedData.userIds) {
-                // Conflict Detection (Simple warning logic within transaction - or just proceed but we could return warning?)
-                // Querying for conflicts actually needs to happen BEFORE transaction or inside.
-                // For MVP, we will proceed but we are adding logic here that COULD handle it.
-                // Ideally this check should be done before creating anything.
-                
                 // Create assignment
                 const assignment = await tx.trainingAssignment.create({
                     data: {
@@ -323,9 +363,8 @@ export async function assignTraining(data: TrainingAssignmentInput) {
                             data: {
                                 desiredLevel: targetLevel as CompetencyLevel,
                                 gapPercentage: newGapPercentage,
-                                // Keep track if this was originally a personal goal
-                                status: existingSkillMatrix.status === 'personal_goal' 
-                                    ? 'training_assigned_from_personal' 
+                                status: existingSkillMatrix.status === 'personal_goal'
+                                    ? 'training_assigned_from_personal'
                                     : 'training_assigned'
                             }
                         })
@@ -348,54 +387,27 @@ export async function assignTraining(data: TrainingAssignmentInput) {
                     }
                 }
 
-                // ---------------------------------------------------------
-                // 1. Auto-create TrainingCalendar entry (Multi-Day Support)
-                // ---------------------------------------------------------
-                // Create calendar entries for each day of the training
-                
-                const days = eachDayOfInterval({
-                    start: startDate,
-                    end: targetCompletionDate
-                })
-
-                for (const day of days) {
-                    // Optional: Skip weekends for OFFLINE trainings? 
-                    // Let's assume OFFLINE is strictly business days, ONLINE is self-paced (maybe just start date? or all days?)
-                    // For now, if "ONLINE" we treat it as "Self Paced" usually, so maybe just mark Start and End? 
-                    // Or mark every day as "Active Training Period". 
-                    // Let's mark everyday for visibility in Calendar Gantt/Month view.
-                    
-                    // SKIP WEEKENDS Check
-                    if (isWeekend(day)) {
-                        // Configurable? For now, skip weekends to be safe/professional default.
-                        continue;
-                    }
-
-                    await tx.trainingCalendar.create({
-                        data: {
-                            trainingId: validatedData.trainingId,
-                            trainingDate: day,
-                            venue: training?.venue || (training?.mode === 'OFFLINE' ? training?.offlineTraining?.venue : null),
-                            meetingLink: training?.meetingLink,
-                            maxParticipants: training?.maxParticipants,
-                            publishedAt: new Date(), // Auto-publish
-                        }
-                    })
-                }
-
-                // 2. Auto-schedule Assessment
+                // Auto-schedule Assessment
                 if (assessment) {
-                    await tx.assessmentAssignment.create({
-                        data: {
+                    const existingAssessment = await tx.assessmentAssignment.findFirst({
+                        where: {
                             assessmentId: assessment.id,
-                            userId,
-                            assignedById: session.user.id!,
-                            dueDate: targetCompletionDate,
-                            status: 'PENDING'
+                            userId
                         }
                     })
+
+                    if (!existingAssessment) {
+                        await tx.assessmentAssignment.create({
+                            data: {
+                                assessmentId: assessment.id,
+                                userId,
+                                assignedById: session.user.id!,
+                                dueDate: targetCompletionDate,
+                                status: 'PENDING'
+                            }
+                        })
+                    }
                 }
-                // ---------------------------------------------------------
 
                 // Create Notification
                 await tx.notification.create({
@@ -403,35 +415,43 @@ export async function assignTraining(data: TrainingAssignmentInput) {
                         recipientId: userId,
                         type: 'TRAINING_ASSIGNED',
                         subject: `New Training Assigned: ${training?.topicName}`,
-                        message: `You have been assigned to ${training?.topicName} training. Start date: ${startDate.toDateString()}`,
+                        message: `You have been assigned to ${training?.topicName} training. Start date: ${startDate.toDateString()}. Target completion: ${targetCompletionDate.toDateString()}.${assessment ? ` Assessment will be scheduled on your target completion date.` : ''}`,
                     }
                 })
-
-                // Send email notification
-                try {
-                    await sendEmail({
-                        to: assignment.user.email,
-                        subject: `New Training Assigned: ${training?.topicName}`,
-                        template: 'training-assigned',
-                        data: {
-                            userName: assignment.user.name,
-                            trainingName: training?.topicName || 'Training',
-                            mode: training?.mode || 'ONLINE',
-                            duration: training?.duration || 0,
-                            startDate: startDate.toDateString(),
-                            completionDate: targetCompletionDate.toDateString(),
-                            message: `You have been assigned to complete the "${training?.topicName}" training. Please log in to view details and start your training.`
-                        }
-                    })
-                } catch (emailError) {
-                    console.error('Failed to send email:', emailError)
-                    // Don't fail the assignment if email fails
-                }
 
                 assignments.push(assignment)
             }
             return assignments
+        }, {
+            timeout: 15000, // Increase timeout to 15 seconds
         })
+
+        // ---------------------------------------------------------
+        // STEP 3: Send emails AFTER transaction (async, outside critical path)
+        // ---------------------------------------------------------
+        for (const assignment of result) {
+            try {
+                await sendEmail({
+                    to: assignment.user.email,
+                    subject: `New Training Assigned: ${training?.topicName}`,
+                    template: 'training-assigned',
+                    data: {
+                        userName: assignment.user.name,
+                        trainingName: training?.topicName || 'Training',
+                        mode: training?.mode || 'ONLINE',
+                        duration: training?.duration || 0,
+                        startDate: startDate.toDateString(),
+                        completionDate: targetCompletionDate.toDateString(),
+                        hasAssessment: !!assessment,
+                        assessmentDueDate: assessment ? targetCompletionDate.toDateString() : undefined,
+                        message: `You have been assigned to complete the "${training?.topicName}" training. Please log in to view details and start your training.${assessment ? ' An assessment has been scheduled for your target completion date.' : ''}`
+                    }
+                })
+            } catch (emailError) {
+                console.error('Failed to send email to', assignment.user.email, emailError)
+                // Don't fail the assignment if email fails
+            }
+        }
 
         revalidatePath('/manager/assign-training')
         revalidatePath('/admin/tna')
@@ -451,7 +471,7 @@ export async function bulkAssignTraining(data: BulkTrainingAssignmentInput) {
 
     // Manager/Admin/Trainer check
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'MANAGER', 'TRAINER'].includes(role)
+        ['ADMIN', 'MANAGER', 'TRAINER', 'MENTOR'].includes(role)
     )
     if (!hasPermission) {
         return { success: false, error: 'Insufficient permissions' }
@@ -459,6 +479,8 @@ export async function bulkAssignTraining(data: BulkTrainingAssignmentInput) {
 
     try {
         const results = []
+        const errors: Array<{ userId: string; error: string }> = []
+
         for (const assignment of data.assignments) {
             try {
                 const res = await assignTraining({
@@ -466,23 +488,44 @@ export async function bulkAssignTraining(data: BulkTrainingAssignmentInput) {
                     userIds: [assignment.userId],
                     trainerId: assignment.trainerId,
                     mentorId: assignment.mentorId,
+                    targetLevel: data.targetLevel, // Pass targetLevel from bulk schema
                     startDate: new Date(assignment.startDate),
                     targetCompletionDate: new Date(assignment.targetCompletionDate),
                 })
-                if (res.success && res.data) results.push(res.data[0])
+                if (res.success && res.data) {
+                    results.push(res.data[0])
+                } else {
+                    errors.push({ userId: assignment.userId, error: res.error || 'Unknown error' })
+                }
             } catch (err) {
-                console.error('Assignment failed for user:', assignment.userId, err)
+                const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+                console.error('Assignment failed for user:', assignment.userId, errorMsg, err)
+                errors.push({ userId: assignment.userId, error: errorMsg })
                 // Continue with other assignments even if one fails
             }
         }
 
         if (results.length === 0) {
-            return { success: false, error: 'All assignments failed. Check server logs.' }
+            const errorDetails = errors.map(e => `User ${e.userId}: ${e.error}`).join('; ')
+            return { success: false, error: `All assignments failed. Details: ${errorDetails}` }
+        }
+
+        // Partial success case
+        if (errors.length > 0) {
+            console.warn('Some assignments failed:', errors)
         }
 
         revalidatePath('/manager/assign-training')
         revalidatePath('/admin/training')
-        return { success: true, count: results.length }
+        revalidatePath('/admin/assign-training')
+
+        return {
+            success: true,
+            count: results.length,
+            partialSuccess: errors.length > 0,
+            failedCount: errors.length,
+            errors: errors
+        }
     } catch (error) {
         console.error('Bulk assignment error:', error)
         return {
@@ -583,7 +626,7 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
     // Find assignment
     const assignment = await prisma.trainingAssignment.findUnique({
         where: { id: data.assignmentId },
-        include: { 
+        include: {
             training: {
                 include: {
                     skill: true,
@@ -599,7 +642,7 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
     try {
         const result = await prisma.$transaction(async (tx) => {
             const completionDate = new Date()
-            
+
             // Update assignment status
             const updatedAssignment = await tx.trainingAssignment.update({
                 where: { id: data.assignmentId },
@@ -701,21 +744,21 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
 
                 // Update SkillMatrix status to in_progress
                 const skillMatrix = await tx.skillMatrix.findUnique({
-                    where: { 
-                        userId_skillId: { 
-                            userId: session.user.id!, 
-                            skillId: assignment.training.skillId 
-                        } 
+                    where: {
+                        userId_skillId: {
+                            userId: session.user.id!,
+                            skillId: assignment.training.skillId
+                        }
                     },
                 })
 
                 if (skillMatrix) {
                     await tx.skillMatrix.update({
-                        where: { 
-                            userId_skillId: { 
-                                userId: session.user.id!, 
-                                skillId: assignment.training.skillId 
-                            } 
+                        where: {
+                            userId_skillId: {
+                                userId: session.user.id!,
+                                skillId: assignment.training.skillId
+                            }
                         },
                         data: {
                             status: 'in_progress',
@@ -743,7 +786,7 @@ export async function updateTrainingCompletion(data: TrainingCompletionInput) {
                 })
 
                 if (userWithJourney?.journey && userWithJourney.journey.phases.length > 0) {
-                    const { autoAdvancePhase } = await import('./journeys')
+                    const { autoAdvancePhase } = await import('@/lib/journey-engine')
                     await autoAdvancePhase(
                         userWithJourney.journey.id,
                         'training_completed',
@@ -832,7 +875,7 @@ export async function deleteTrainingAssignment(assignmentId: string) {
     if (!session?.user) return { success: false, error: 'Unauthorized' }
 
     // Check permission (Admin or Manager)
-    const hasPermission = session.user.systemRoles?.some((role: string) => 
+    const hasPermission = session.user.systemRoles?.some((role: string) =>
         ['ADMIN', 'MANAGER'].includes(role)
     )
     if (!hasPermission) return { success: false, error: 'Insufficient permissions' }
@@ -918,7 +961,7 @@ export async function deleteTrainingAssignment(assignmentId: string) {
         revalidatePath('/employee/assessment-duties')
         revalidatePath('/admin/tna')
         revalidatePath('/manager/assign-training')
-        
+
         return result
     } catch (error) {
         console.error('Delete training assignment error:', error)

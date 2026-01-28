@@ -126,18 +126,10 @@ export function ProofUpload({ assignmentId, existingProofs }: ProofUploadProps) 
                     ) : (
                         <UploadDropzone
                             endpoint="proofUploader"
+                            input={{ assignmentId }}
                             config={{ 
                                 mode: "manual",
                                 appendOnPaste: false 
-                            }}
-                            onBeforeUploadBegin={(files) => {
-                                // Add assignmentId to metadata before upload
-                                return files.map((file) => 
-                                    Object.assign(file, { 
-                                        customId: assignmentId,
-                                        metadata: { assignmentId } 
-                                    })
-                                )
                             }}
                             onClientUploadComplete={(res: any) => {
                                 setUploading(false)

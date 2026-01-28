@@ -190,7 +190,7 @@ export async function getTrainingFeedback(trainingId: string) {
 
     // Check permissions (admin or trainer)
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'TRAINER'].includes(role)
+        ['ADMIN', 'TRAINER', 'MENTOR'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 
@@ -298,7 +298,7 @@ export async function getFeedbackSummary(filters?: FeedbackFilterInput) {
 
     // Check permissions
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'TRAINER', 'MANAGER'].includes(role)
+        ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 
@@ -475,7 +475,7 @@ export async function exportFeedbackReport(filters?: FeedbackFilterInput) {
 
     // Check permissions
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'TRAINER', 'MANAGER'].includes(role)
+        ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 
@@ -551,7 +551,7 @@ export async function getTrainingEffectiveness(filters?: { skillId?: string; tra
 
     // Check permissions
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'TRAINER', 'MANAGER'].includes(role)
+        ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 
@@ -698,7 +698,7 @@ export async function getTrainingFeedbackDetails(trainingId: string) {
     if (!session?.user?.id) throw new Error('Unauthorized')
 
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'TRAINER', 'MANAGER'].includes(role)
+        ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 
@@ -911,7 +911,7 @@ export async function getTrainingsWithFeedbackStats() {
     if (!session?.user?.id) throw new Error('Unauthorized')
 
     const hasPermission = session.user.systemRoles?.some((role: string) =>
-        ['ADMIN', 'TRAINER', 'MANAGER'].includes(role)
+        ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role)
     )
     if (!hasPermission) throw new Error('Insufficient permissions')
 

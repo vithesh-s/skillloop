@@ -11,6 +11,7 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from '@/components/ui/dialog'
 import {
     Form,
@@ -34,14 +35,14 @@ import {
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { RiLoader4Line } from '@remixicon/react'
+import { CheckCircle2 } from 'lucide-react'
 
 interface TrainingCompletionDialogProps {
     assignment: any
-    open: boolean
-    onOpenChange: (open: boolean) => void
 }
 
-export function TrainingCompletionDialog({ assignment, open, onOpenChange }: TrainingCompletionDialogProps) {
+export function TrainingCompletionDialog({ assignment }: TrainingCompletionDialogProps) {
+    const [open, setOpen] = useState(false)
     const [isPending, startTransition] = useTransition()
     const router = useRouter()
 
@@ -59,7 +60,7 @@ export function TrainingCompletionDialog({ assignment, open, onOpenChange }: Tra
             const result = await updateTrainingCompletion(data)
             if (result.success) {
                 toast.success('Training marked as completed!')
-                onOpenChange(false)
+                setOpen(false)
                 router.refresh()
             } else {
                 toast.error(result.error || 'Failed to update')
@@ -68,7 +69,13 @@ export function TrainingCompletionDialog({ assignment, open, onOpenChange }: Tra
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button size="lg" className="gap-2">
+                    <CheckCircle2 className="h-5 w-5" />
+                    Submit Training Completion
+                </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Complete Training</DialogTitle>
@@ -287,7 +294,7 @@ export function TrainingCompletionDialog({ assignment, open, onOpenChange }: Tra
                         />
 
                         <div className="flex justify-end gap-4">
-                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isPending}>

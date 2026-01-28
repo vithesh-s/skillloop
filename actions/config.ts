@@ -104,7 +104,7 @@ export async function getSystemConfig() {
 export async function getReminderConfig() {
     const session = await auth();
 
-    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MANAGER'].includes(role))) {
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role))) {
         throw new Error("Unauthorized");
     }
 

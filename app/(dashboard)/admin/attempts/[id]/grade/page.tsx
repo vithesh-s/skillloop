@@ -17,7 +17,7 @@ export default async function AttemptGradePage({
 }) {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     redirect("/unauthorized")
   }
 

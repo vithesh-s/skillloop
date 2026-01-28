@@ -134,7 +134,13 @@ export function AssignTrainingInterface({ reportees, trainings, roles }: AssignT
         startTransition(async () => {
             const result = await bulkAssignTraining(payload)
             if (result.success) {
-                toast.success(`Assigned training to ${result.count} users`)
+                if (result.partialSuccess) {
+                    toast.warning(`Assigned training to ${result.count} users. ${result.failedCount} assignments failed.`)
+                    // Log details to console for debugging
+                    console.error('Failed assignments:', result.errors)
+                } else {
+                    toast.success(`Successfully assigned training to ${result.count} users`)
+                }
                 setSelectedUsers([])
                 setStartDate('')
                 setCompletionDate('')
@@ -142,7 +148,8 @@ export function AssignTrainingInterface({ reportees, trainings, roles }: AssignT
                 setTargetLevel(1)
                 router.refresh()
             } else {
-                toast.error(result.error || 'Failed to assign')
+                toast.error(result.error || 'Failed to assign training')
+                console.error('Assignment error:', result)
             }
         })
     }

@@ -58,7 +58,7 @@ export async function getCurrentUser() {
 /**
  * Check if current user has required role(s)
  * 
- * @param allowedRoles - Array of allowed roles (e.g., ['ADMIN', 'TRAINER'])
+ * @param allowedRoles - Array of allowed roles (e.g., ['ADMIN', 'TRAINER', 'MENTOR'])
  * @returns Object with authorized status and user
  */
 export async function checkAuthorization(allowedRoles: string[]) {

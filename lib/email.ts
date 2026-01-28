@@ -1,16 +1,16 @@
 import { createTransport } from 'nodemailer'
 
 interface SendVerificationRequestParams {
-    identifier: string
-    url: string
-    provider: {
-        server: string
-        from: string
-    }
-    theme?: {
-      brandColor?: string
-      buttonText?: string
-    }
+  identifier: string
+  url: string
+  provider: {
+    server: string
+    from: string
+  }
+  theme?: {
+    brandColor?: string
+    buttonText?: string
+  }
 }
 
 
@@ -225,28 +225,10 @@ function getTemplate(template: string, data: any) {
 }
 
 export async function sendEmail({ to, subject, template, data }: SendEmailParams) {
-  // Use the same robust configuration as auth.ts
-  const serverConfig = {
-    host: process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST || "smtp.office365.com",
-    port: Number(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || 587),
-    auth: {
-      user: process.env.SMTP_USER || process.env.EMAIL_SERVER_USER,
-      pass: process.env.SMTP_PASSWORD || process.env.EMAIL_SERVER_PASSWORD,
-    },
-    secure: false,
-    requireTLS: true,
-    tls: {
-      ciphers: "SSLv3",
-    }
-  }
-
-  // Fallback to EMAIL_SERVER string if specific vars aren't present - though the object above has defaults, 
-  // we want to ensure we have credentials. 
-  // If SMTP_USER is missing, we might want to fall back to EMAIL_SERVER.
-  // But strictly speaking the user has the vars in .env.
-
-  const transport = createTransport(serverConfig)
-  const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || 'noreply@skillloop.com'
+  // Use the same EMAIL_SERVER configuration that works for OTP/magic link
+  // This ensures consistent authentication
+  const transport = createTransport(process.env.EMAIL_SERVER!)
+  const from = process.env.EMAIL_FROM || 'noreply@skillloop.com'
 
   // Simple template logic for now
   // Use template engine
@@ -271,58 +253,58 @@ export async function sendEmail({ to, subject, template, data }: SendEmailParams
  * This function is called by NextAuth when a user requests to sign in
  */
 export async function sendVerificationRequest(
-    params: SendVerificationRequestParams
+  params: SendVerificationRequestParams
 ) {
-    const { identifier, url, provider, theme } = params
-    const { host } = new URL(url)
+  const { identifier, url, provider, theme } = params
+  const { host } = new URL(url)
 
-    // Create nodemailer transporter
-    const transport = createTransport(provider.server)
+  // Create nodemailer transporter
+  const transport = createTransport(provider.server)
 
-    try {
-        const result = await transport.sendMail({
-            to: identifier,
-            from: provider.from,
-            subject: `Sign in to ${host}`,
-            text: text({ url, host }),
-            html: html({ url, host, theme }),
-        })
+  try {
+    const result = await transport.sendMail({
+      to: identifier,
+      from: provider.from,
+      subject: `Sign in to ${host}`,
+      text: text({ url, host }),
+      html: html({ url, host, theme }),
+    })
 
-        const failed = result.rejected.concat(result.pending).filter(Boolean)
-        if (failed.length) {
-            throw new Error(`Email(s) (${failed.join(', ')}) could not be sent`)
-        }
-
-        console.log(`✅ Verification email sent to ${identifier}`)
-    } catch (error) {
-        console.error('❌ Error sending verification email:', error)
-        throw error
+    const failed = result.rejected.concat(result.pending).filter(Boolean)
+    if (failed.length) {
+      throw new Error(`Email(s) (${failed.join(', ')}) could not be sent`)
     }
+
+    console.log(`✅ Verification email sent to ${identifier}`)
+  } catch (error) {
+    console.error('❌ Error sending verification email:', error)
+    throw error
+  }
 }
 
 /**
  * Email HTML body
  */
 function html(params: {
-    url: string
-    host: string
-    theme?: { brandColor?: string; buttonText?: string }
+  url: string
+  host: string
+  theme?: { brandColor?: string; buttonText?: string }
 }) {
-    const { url, host, theme } = params
+  const { url, host, theme } = params
 
-    const escapedHost = host.replace(/\./g, '&#8203;.')
+  const escapedHost = host.replace(/\./g, '&#8203;.')
 
-    const brandColor = theme?.brandColor || '#10b981' // emerald-500
-    const color = {
-        background: '#f9fafb', // gray-50
-        text: '#111827', // gray-900
-        mainBackground: '#fff',
-        buttonBackground: brandColor,
-        buttonBorder: brandColor,
-        buttonText: theme?.buttonText || '#fff',
-    }
+  const brandColor = theme?.brandColor || '#10b981' // emerald-500
+  const color = {
+    background: '#f9fafb', // gray-50
+    text: '#111827', // gray-900
+    mainBackground: '#fff',
+    buttonBackground: brandColor,
+    buttonBorder: brandColor,
+    buttonText: theme?.buttonText || '#fff',
+  }
 
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -401,5 +383,5 @@ function html(params: {
  * Email text body (fallback for email clients that don't render HTML)
  */
 function text({ url, host }: { url: string; host: string }) {
-    return `Sign in to ${host}\n\nClick this link to sign in:\n${url}\n\nThis link will expire in 24 hours.\n\nIf you did not request this email, you can safely ignore it.\n`
+  return `Sign in to ${host}\n\nClick this link to sign in:\n${url}\n\nThis link will expire in 24 hours.\n\nIf you did not request this email, you can safely ignore it.\n`
 }

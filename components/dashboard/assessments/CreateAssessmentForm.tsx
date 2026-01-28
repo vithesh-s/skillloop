@@ -22,6 +22,7 @@ import { QuestionForm } from "./QuestionForm"
 import { QuestionsList } from "./QuestionsList"
 import { BulkUploadQuestions } from "./BulkUploadQuestions"
 import { QuestionBankSelector } from "./QuestionBankSelector"
+import { AIGenerationForm } from "./AIGenerationForm"
 import { useRouter } from "next/navigation"
 import type { Skill, SkillCategory } from "@prisma/client"
 
@@ -250,10 +251,11 @@ export function CreateAssessmentForm({
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="manual">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="manual">Add Manually</TabsTrigger>
                 <TabsTrigger value="bulk">Bulk Upload</TabsTrigger>
                 <TabsTrigger value="bank">Question Bank</TabsTrigger>
+                <TabsTrigger value="ai-generator">AI Generator</TabsTrigger>
               </TabsList>
               <TabsContent value="manual" className="space-y-4">
                 <QuestionForm 
@@ -280,6 +282,14 @@ export function CreateAssessmentForm({
                       ""
                     } 
                  />
+              </TabsContent>
+              <TabsContent value="ai-generator">
+                <AIGenerationForm 
+                  assessmentId={assessmentId}
+                  skillId={initialAssessment?.skillId || (state.success && state.data?.skillId) || ""}
+                  skillName={skills.find(s => s.id === (initialAssessment?.skillId || (state.success && state.data?.skillId)))?.name || ""}
+                  onSuccess={handleUpdate}
+                />
               </TabsContent>
             </Tabs>
           </CardContent>

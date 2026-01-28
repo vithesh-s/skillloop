@@ -97,7 +97,7 @@ export default async function MentorshipPage() {
                   {phase.journey.user.email && (
                     <div className="flex items-center gap-1" title={phase.journey.user.email}>
                       <Mail className="h-3 w-3" />
-                      <span className="truncate max-w-[120px]">{phase.journey.user.email}</span>
+                      <span className="truncate max-w-30">{phase.journey.user.email}</span>
                     </div>
                   )}
                   {phase.journey.user.department && (

@@ -29,7 +29,7 @@ export async function createAssessment(
 ): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -148,7 +148,7 @@ export async function updateAssessment(
 export async function archiveAssessment(assessmentId: string): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -176,7 +176,7 @@ export async function archiveAssessment(assessmentId: string): Promise<FormState
 export async function deleteAssessment(assessmentId: string): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -219,7 +219,7 @@ export async function deleteAssessment(assessmentId: string): Promise<FormState>
 export async function publishAssessment(assessmentId: string): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -303,7 +303,7 @@ export async function getAssessments(params?: {
 
   try {
     // Check if user is strictly a learner
-    const isLearnerOnly = !session.user.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MANAGER'].includes(role))
+    const isLearnerOnly = !session.user.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR', 'MANAGER'].includes(role))
 
     // Learner Filter: Only show assigned assessments + 'PUBLISHED' status
     if (isLearnerOnly) {
@@ -397,7 +397,7 @@ export async function addQuestion(
 ): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -556,7 +556,7 @@ export async function updateQuestion(
 export async function deleteQuestion(questionId: string): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -648,9 +648,10 @@ export async function bulkUploadQuestions(
             // Add any other scalar fields if they exist in schema and schema validation
           } as any,
         })
+      }, {
+        timeout: 20000 // Increase timeout to 20s for bulk operations
       })
     )
-
     revalidatePath(`/admin/assessments/${assessmentId}`)
 
     return {
@@ -672,7 +673,7 @@ export async function reorderQuestions(
 ): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -709,7 +710,7 @@ export async function reorderQuestions(
 export async function getQuestionsForBank(params: { skillId?: string; search?: string; excludeAssessmentId?: string }) {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return []
   }
 
@@ -764,7 +765,7 @@ export async function importQuestions(
 ): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -788,22 +789,27 @@ export async function importQuestions(
 
     // Create copies linked to target assessment
     await prisma.$transaction(
-      sourceQuestions.map((q) =>
-        prisma.question.create({
-          data: {
-            assessmentId: targetAssessmentId,
-            questionText: q.questionText,
-            questionType: q.questionType,
-            options: q.options || undefined,
-            correctAnswer: q.correctAnswer,
-            marks: q.marks,
-            difficultyLevel: q.difficultyLevel,
-            orderIndex: currentOrder++,
-            // @ts-ignore - Prisma types are stale in editor
-            skillId: (q as any).skillId
-          }
-        })
-      )
+      async (tx) => {
+        for (const q of sourceQuestions) {
+          await tx.question.create({
+            data: {
+              assessmentId: targetAssessmentId,
+              questionText: q.questionText,
+              questionType: q.questionType,
+              options: q.options || undefined,
+              correctAnswer: q.correctAnswer,
+              marks: q.marks,
+              difficultyLevel: q.difficultyLevel,
+              orderIndex: currentOrder++,
+              // @ts-ignore - Prisma types are stale in editor
+              skillId: (q as any).skillId
+            }
+          })
+        }
+      },
+      {
+        timeout: 20000 // Increase timeout to 20s for bulk operations
+      }
     )
 
     revalidatePath(`/admin/assessments/${targetAssessmentId}`)
@@ -1030,7 +1036,16 @@ export async function submitAssessment(attemptId: string): Promise<FormState> {
       })
     })
 
-    await prisma.$transaction(answerUpdates)
+    await prisma.$transaction(
+      async (tx) => {
+        await Promise.all(
+          answerUpdates.map(update => update)
+        )
+      },
+      {
+        timeout: 20000 // Increase timeout for grading operations
+      }
+    )
 
     // Update attempt
     const percentage = (totalScore / attempt.assessment.totalMarks) * 100
@@ -1095,7 +1110,7 @@ export async function getAttemptById(attemptId: string) {
 
     // Check ownership or permissions
     const isOwner = attempt.userId === session.user.id
-    const isAdminOrTrainer = session.user.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))
+    const isAdminOrTrainer = session.user.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))
 
     if (!isOwner && !isAdminOrTrainer) {
       return null
@@ -1120,7 +1135,7 @@ export async function getPendingGrading(params?: {
 }) {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { attempts: [], total: 0 }
   }
 
@@ -1170,7 +1185,7 @@ export async function gradeAnswer(
 ): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -1240,7 +1255,7 @@ export async function gradeAnswer(
 export async function completeGrading(attemptId: string): Promise<FormState> {
   const session = await auth()
 
-  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+  if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
     return { message: "Unauthorized", success: false }
   }
 
@@ -1493,7 +1508,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
   ): Promise<FormState> {
     const session = await auth()
 
-    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
       return { message: "Unauthorized", success: false }
     }
 
@@ -1515,29 +1530,34 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
         return { message: "Assessment not found", success: false }
       }
 
-      const operations = userIds.map(userId =>
-        prisma.assessmentAssignment.upsert({
-          where: {
-            assessmentId_userId: {
-              assessmentId,
-              userId
-            }
-          },
-          update: {
-            assignedById: assigner.id,
-            dueDate: dueDate || undefined,
-          },
-          create: {
-            assessmentId,
-            userId,
-            assignedById: assigner.id,
-            dueDate,
-            status: "PENDING"
+      await prisma.$transaction(
+        async (tx) => {
+          for (const userId of userIds) {
+            await tx.assessmentAssignment.upsert({
+              where: {
+                assessmentId_userId: {
+                  assessmentId,
+                  userId
+                }
+              },
+              update: {
+                assignedById: assigner.id,
+                dueDate: dueDate || undefined,
+              },
+              create: {
+                assessmentId,
+                userId,
+                assignedById: assigner.id,
+                dueDate,
+                status: "PENDING"
+              }
+            })
           }
-        })
+        },
+        {
+          timeout: 20000 // Increase timeout for bulk assignment operations
+        }
       )
-
-      await prisma.$transaction(operations)
 
       revalidatePath(`/admin/assessments/${assessmentId}`)
 
@@ -1557,7 +1577,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
   export async function unassignAssessment(assessmentId: string, userId: string): Promise<FormState> {
     const session = await auth()
 
-    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
       return { message: "Unauthorized", success: false }
     }
 
@@ -1581,7 +1601,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
   export async function getAssignedUsers(assessmentId: string) {
     const session = await auth()
 
-    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
       return []
     }
 
@@ -1610,7 +1630,7 @@ export async function completeGrading(attemptId: string): Promise<FormState> {
   export async function getAssessmentSubmissionStatuses(assessmentId: string) {
     const session = await auth()
 
-    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER'].includes(role))) {
+    if (!session?.user?.systemRoles?.some(role => ['ADMIN', 'TRAINER', 'MENTOR'].includes(role))) {
       return []
     }
 

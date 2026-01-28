@@ -165,7 +165,7 @@ export async function getTrainingCalendarView(
                 }
             }
         }
-    } else if (role === 'TRAINER') {
+    } else if (role === 'TRAINER' || role === 'MENTOR') {
         // See trainings where they are trainer OR creator?
         // Usually where they are assigned as Trainer in TrainingAssignment 
         // Or in OfflineTraining.trainerIds (which is JSON, harder to query directly in Prisma efficient way without raw query or separate check)
@@ -268,7 +268,7 @@ export async function createCalendarEntry(data: {
 
     // Only Admin/Trainer can create
     const roles = session.user.systemRoles || []
-    if (!roles.some((r: string) => ['ADMIN', 'TRAINER'].includes(r))) {
+    if (!roles.some((r: string) => ['ADMIN', 'TRAINER', 'MENTOR'].includes(r))) {
         return { success: false, error: 'Insufficient permissions' }
     }
 
@@ -399,7 +399,7 @@ export async function getCalendarStats(role: string, userId: string) {
         } else if (role === 'MANAGER') {
             whereAssignment.user = { managerId: userId }
             whereTraining.assignments = { some: { user: { managerId: userId } } }
-        } else if (role === 'TRAINER') {
+        } else if (role === 'TRAINER' || role === 'MENTOR') {
             whereAssignment.trainerId = userId
             whereTraining.assignments = { some: { trainerId: userId } } // Simplified
         }
