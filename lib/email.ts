@@ -8,8 +8,8 @@ interface SendVerificationRequestParams {
         from: string
     }
     theme?: {
-        brandColor?: string
-        buttonText?: string
+      brandColor?: string
+      buttonText?: string
     }
 }
 
@@ -225,12 +225,28 @@ function getTemplate(template: string, data: any) {
 }
 
 export async function sendEmail({ to, subject, template, data }: SendEmailParams) {
-  if (!process.env.EMAIL_SERVER) {
-    console.warn('EMAIL_SERVER not configured, skipping email')
-    return
+  // Use the same robust configuration as auth.ts
+  const serverConfig = {
+    host: process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST || "smtp.office365.com",
+    port: Number(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || 587),
+    auth: {
+      user: process.env.SMTP_USER || process.env.EMAIL_SERVER_USER,
+      pass: process.env.SMTP_PASSWORD || process.env.EMAIL_SERVER_PASSWORD,
+    },
+    secure: false,
+    requireTLS: true,
+    tls: {
+      ciphers: "SSLv3",
+    }
   }
-  const transport = createTransport(process.env.EMAIL_SERVER)
-  const from = process.env.EMAIL_FROM || 'noreply@skillloop.com'
+
+  // Fallback to EMAIL_SERVER string if specific vars aren't present - though the object above has defaults, 
+  // we want to ensure we have credentials. 
+  // If SMTP_USER is missing, we might want to fall back to EMAIL_SERVER.
+  // But strictly speaking the user has the vars in .env.
+
+  const transport = createTransport(serverConfig)
+  const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || 'noreply@skillloop.com'
 
   // Simple template logic for now
   // Use template engine

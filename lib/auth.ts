@@ -30,7 +30,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Authentication providers
     providers: [
         Nodemailer({
-            server: process.env.EMAIL_SERVER || "smtp://mock:mock@localhost:25",
+            server: {
+                host: process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST || "smtp.office365.com",
+                port: Number(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || 587),
+                auth: {
+                    user: process.env.SMTP_USER || process.env.EMAIL_SERVER_USER,
+                    pass: process.env.SMTP_PASSWORD || process.env.EMAIL_SERVER_PASSWORD,
+                },
+                secure: false, // true for 465, false for other ports
+                requireTLS: true,
+                tls: {
+                    ciphers: "SSLv3",
+                }
+            },
             from: process.env.EMAIL_FROM || "onboarding@resend.dev",
             sendVerificationRequest: sendVerificationRequest as any,
         }),
